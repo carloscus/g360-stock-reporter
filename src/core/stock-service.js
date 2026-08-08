@@ -247,7 +247,14 @@ export function calculateKPIs(productos) {
     porEstadoLinea[estado] = (porEstadoLinea[estado] || 0) + 1;
 
     const cat = p.categoria || 'SIN CATEGORIA';
-    porCategoria[cat] = (porCategoria[cat] || 0) + 1;
+    if (!porCategoria[cat]) {
+      porCategoria[cat] = { skus: 0, valor: 0, peso: 0, cajas: 0, unidades: 0 };
+    }
+    porCategoria[cat].skus += 1;
+    porCategoria[cat].unidades += stock;
+    porCategoria[cat].valor += stock * (p.precio || 0);
+    porCategoria[cat].peso += stock * (p.peso_kg || 0);
+    porCategoria[cat].cajas += _getBx(p) || 0;
 
     if (p.precio && p.precio > 0) conPrecio.push(p);
     else sinPrecio.push(p);
@@ -268,6 +275,9 @@ export function calculateKPIs(productos) {
     porEstadoLinea: estados,
     estadoLineaTotal: Object.keys(porEstadoLinea).length,
     categoriasTotales: Object.keys(porCategoria).length,
+    porCategoria: Object.entries(porCategoria)
+      .sort((a, b) => b[1].skus - a[1].skus)
+      .map(([nombre, v]) => ({ nombre, ...v })),
     conPrecio: conPrecio.length,
     sinPrecio: sinPrecio.length,
     unidadesSinPrecio,

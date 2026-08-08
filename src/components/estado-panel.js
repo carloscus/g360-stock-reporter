@@ -395,6 +395,114 @@ export class EstadoPanel extends LitElement {
     .alert-summary-note strong {
       color: var(--g360-accent);
     }
+
+    .kpi-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .kpi-list-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--g360-bg);
+      border: 1px solid var(--g360-border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .kpi-list-row:hover {
+      border-color: var(--g360-accent);
+      background: rgba(0, 208, 132, 0.05);
+    }
+
+    .kpi-list-row-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--g360-text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .kpi-list-row-value {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--g360-accent);
+      white-space: nowrap;
+    }
+
+    .kpi-list-row-sub {
+      font-size: 10px;
+      color: var(--g360-muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .kpi-list-detail {
+      padding: 8px 12px 12px;
+      background: var(--g360-bg);
+      border: 1px dashed var(--g360-border);
+      border-radius: 0 0 10px 10px;
+      border-top: none;
+      font-size: 12px;
+      color: var(--g360-muted);
+    }
+
+    .kpi-list-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+    }
+
+    .kpi-list-detail-item {
+      background: var(--g360-surface);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .kpi-list-detail-item .val {
+      font-weight: 800;
+      color: var(--g360-text);
+      font-size: 13px;
+    }
+
+    .kpi-list-detail-item .lbl {
+      font-size: 9px;
+      color: var(--g360-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .kpi-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 10px 12px;
+      background: var(--g360-surface);
+      border: 1px solid var(--g360-border);
+      border-radius: 10px;
+      margin-bottom: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .kpi-section-header:hover {
+      border-color: var(--g360-accent);
+    }
+
+    .kpi-section-header .chevron {
+      transition: transform 0.2s ease;
+      color: var(--g360-muted);
+    }
+
+    .kpi-section-header.open .chevron {
+      transform: rotate(180deg);
+    }
   `;
 
   constructor() {
@@ -404,6 +512,12 @@ export class EstadoPanel extends LitElement {
     this.alerts = [];
     this.kpis = null;
     this._showAllAlerts = false;
+    this._expandedSection = null;
+    this._expandedCategoria = null;
+  }
+
+  _toggleSection(name) {
+    this._expandedSection = this._expandedSection === name ? null : name;
   }
 
   willUpdate(changedProperties) {
@@ -426,6 +540,41 @@ export class EstadoPanel extends LitElement {
   _getProgressPercent() {
     if (!this.stats.total) return 0;
     return Math.round((this.stats.conStock / this.stats.total) * 100);
+  }
+
+  _renderCategoriaRow(cat) {
+    const open = this._expandedCategoria === cat.nombre;
+    return html`
+      <div>
+        <div class="kpi-list-row" @click=${() => this._toggleCategoria(cat.nombre)}>
+          <span class="kpi-list-row-name">${cat.nombre}</span>
+          <span class="kpi-list-row-sub">${cat.skus} SKUs</span>
+          <span class="kpi-list-row-value">${cat.valor.toLocaleString('es-PE', { style: 'currency', currency: 'PEN', maximumFractionDigits: 0 })}</span>
+        </div>
+        ${open ? html`
+          <div class="kpi-list-detail">
+            <div class="kpi-list-detail-grid">
+              <div class="kpi-list-detail-item">
+                <div class="val">${cat.unidades.toLocaleString('es-PE')}</div>
+                <div class="lbl">Unidades</div>
+              </div>
+              <div class="kpi-list-detail-item">
+                <div class="val">${Math.round(cat.peso).toLocaleString('es-PE')} kg</div>
+                <div class="lbl">Peso est.</div>
+              </div>
+              <div class="kpi-list-detail-item">
+                <div class="val">${cat.cajas.toLocaleString('es-PE')}</div>
+                <div class="lbl">Cajas</div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  _toggleCategoria(name) {
+    this._expandedCategoria = this._expandedCategoria === name ? null : name;
   }
 
   render() {
@@ -474,7 +623,7 @@ export class EstadoPanel extends LitElement {
         </div>
       </div>
 
-      <!-- KPIs optimizados con datos del catálogo enriquecido -->
+      <!-- KPIs interactivos con datos del catálogo enriquecido -->
       ${this.kpis && this.kpis.unidades > 0 ? html`
         <div class="kpi-grid">
           <div class="kpi-card">
@@ -489,19 +638,50 @@ export class EstadoPanel extends LitElement {
             <div class="kpi-value">${this.kpis.cajasTotal.toLocaleString('es-PE')}</div>
             <div class="kpi-label">Cajas (${this.kpis.unidades.toLocaleString('es-PE')} und)</div>
           </div>
-          <div class="kpi-card">
+          <div class="kpi-card" @click=${() => this._toggleSection('categorias')}
+            style="cursor:pointer;">
             <div class="kpi-value">${this.kpis.categoriasTotales}</div>
-            <div class="kpi-label">Categorías</div>
+            <div class="kpi-label">Categorías ${this._expandedSection === 'categorias' ? '▲' : '▼'}</div>
           </div>
         </div>
 
-        <div class="kpi-section">
-          <div class="kpi-section-title">Composición por Estado de Línea</div>
-          <div class="linea-chips">
-            ${this.kpis.porEstadoLinea.map(e => html`
-              <span class="linea-chip">${e.nombre} · ${e.skus}</span>
-            `)}
+        ${this._expandedSection === 'categorias' ? html`
+          <div class="kpi-section">
+            <div class="kpi-section-title">Desglose por Categoría (${this.kpis.porCategoria.length})</div>
+            <div class="kpi-list">
+              ${this.kpis.porCategoria.slice(0, 15).map(cat => html`
+                ${this._renderCategoriaRow(cat)}
+              `)}
+            </div>
           </div>
+        ` : ''}
+
+        <div class="kpi-section">
+          <div class="kpi-section-header ${this._expandedSection === 'estado' ? 'open' : ''}"
+            @click=${() => this._toggleSection('estado')}>
+            <span class="kpi-section-title" style="margin:0;">Composición por Estado de Línea</span>
+            <span class="chevron">🔽</span>
+          </div>
+          ${this._expandedSection === 'estado' ? html`
+            <div class="kpi-list">
+              ${this.kpis.porEstadoLinea.map(est => html`
+                <div class="kpi-list-row" style="cursor:default;">
+                  <span class="kpi-list-row-name">${est.nombre}</span>
+                  <span class="kpi-list-row-sub">SKUs</span>
+                  <span class="kpi-list-row-value">${est.skus}</span>
+                </div>
+              `)}
+            </div>
+          ` : html`
+            <div class="linea-chips">
+              ${this.kpis.porEstadoLinea.slice(0, 4).map(e => html`
+                <span class="linea-chip" @click=${() => this._toggleSection('estado')}>${e.nombre} · ${e.skus}</span>
+              `)}
+              ${this.kpis.porEstadoLinea.length > 4 ? html`
+                <span class="linea-chip" style="cursor:pointer;" @click=${() => this._toggleSection('estado')}>+${this.kpis.porEstadoLinea.length - 4} más…</span>
+              ` : ''}
+            </div>
+          `}
         </div>
       ` : ''}
 

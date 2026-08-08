@@ -151,7 +151,7 @@ export class StockHeader extends LitElement {
       <header class="header" role="banner">
         <div class="header-left">
           <div class="logo">
-            <img src="/favicon.svg" alt="CIPSA" />
+            <img src="${import.meta.env.BASE_URL}favicon.svg" alt="CIPSA" />
           </div>
           <div class="title-section">
             <h1>${this.titulo}</h1>

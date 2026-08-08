@@ -2,8 +2,8 @@
   "name": "StockPulse CIPSA — Inventario en Tiempo Real",
   "short_name": "StockPulse",
   "description": "Consulta de stock y generación de reportes de inventario para CIPSA",
-  "start_url": "/g360-stock-reporter/",
-  "scope": "/g360-stock-reporter/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b1220",
@@ -11,25 +11,25 @@
   "categories": ["business", "productivity", "utilities"],
   "icons": [
     {
-      "src": "/g360-stock-reporter/favicon.svg",
+      "src": "./favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/g360-stock-reporter/icon-192.png",
+      "src": "./icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/g360-stock-reporter/icon-512.png",
+      "src": "./icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/g360-stock-reporter/apple-touch-icon.png",
+      "src": "./apple-touch-icon.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any maskable"
@@ -43,7 +43,7 @@
   "display_override": ["standalone", "browser"],
   "protocol_handlers": [],
   "share_target": {
-    "action": "/g360-stock-reporter/",
+    "action": "./",
     "method": "GET",
     "enctype": "application/x-www-form-urlencoded",
     "params": {
@@ -53,5 +53,3 @@
     }
   }
 }
-
-
