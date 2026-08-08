@@ -1,0 +1,26 @@
+{
+  "name": "g360-stock-reporter-lit",
+  "version": "1.0.0",
+  "description": "Sistema de reportes de stock para CIPSA - Lit Web Components",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist -b gh-pages"
+  },
+  "dependencies": {
+    "@esbuild/linux-x64": "^0.28.1",
+    "esbuild": "^0.28.1",
+    "fuse.js": "^7.4.1",
+    "lit": "^3.1.0"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.1",
+    "vite": "^4.5.14"
+  },
+  "author": "@carloscus",
+  "license": "MIT",
+  "homepage": "https://carloscus.github.io/g360-stock-reporter"
+}

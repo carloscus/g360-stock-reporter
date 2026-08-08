@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="author" content="@carloscus" />
+    <meta name="description" content="StockPulse CIPSA — Consulta de inventario en tiempo real y generación de reportes de stock" />
+    <meta name="theme-color" content="#00d084" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#00796b" media="(prefers-color-scheme: light)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="StockPulse" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="msapplication-TileColor" content="#00d084" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <title>StockPulse — CIPSA</title>
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/src/styles/main.css" />
+    <script src="/exceljs.min.js" defer></script>
+    <script type="module" src="/src/index.js"></script>
+    <script type="module" src="/g360-signature.js"></script>
+    <script type="module" src="/pwa-register.js"></script>
+  </head>
+  <body>
+    <app-root></app-root>
+    <g360-signature mode="powered" version="1.0.0" style="position: fixed; bottom: 16px; right: 16px; z-index: 100;"></g360-signature>
+  </body>
+</html>

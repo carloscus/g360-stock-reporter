@@ -1,0 +1,166 @@
+/* ============================================
+ * G360 Theme - Estilos principales consolidados
+ * Sistema de diseño para proyectos G360
+ * Mobile-first: 70% móvil / 30% PC
+ * ============================================ */
+
+:root {
+  /* === COLORES G360 === */
+  --g360-bg: #0b1220;
+  --g360-surface: #151e2e;
+  --g360-accent: #00d084;
+  --g360-accent-dark: #00796B;
+  --g360-text: #f0f4f8;
+  --g360-muted: #94a3b8;
+  --g360-border: rgba(255, 255, 255, 0.1);
+  --g360-danger: #ef4444;
+  --g360-warning: #f59e0b;
+
+  /* === EFECTOS === */
+  --g360-glass: rgba(21, 30, 46, 0.75);
+  --g360-blur: 16px;
+  --g360-rounded: 16px;
+  --g360-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --g360-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+
+  /* === ESPACIADO === */
+  --g360-space-xs: 4px;
+  --g360-space-sm: 8px;
+  --g360-space-md: 16px;
+  --g360-space-lg: 24px;
+  --g360-space-xl: 32px;
+
+  /* === TIPOGRAFÍA === */
+  --g360-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --g360-size-xs: 11px;
+  --g360-size-sm: 12px;
+  --g360-size-base: 14px;
+  --g360-size-md: 16px;
+  --g360-size-lg: 18px;
+  --g360-size-xl: 24px;
+  --g360-size-2xl: 28px;
+
+  --g360-weight-normal: 400;
+  --g360-weight-medium: 500;
+  --g360-weight-semibold: 600;
+  --g360-weight-bold: 700;
+  --g360-weight-extrabold: 800;
+
+  /* === BREAKPOINTS (referencia, no válidos en CSS) === */
+  /* Mobile: 0 - 767px (default) */
+  /* Tablet: 768px - 1023px */
+  /* Desktop: 1024px+ */
+}
+
+/* === ESTILOS BASE === */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--g360-font);
+  font-size: var(--g360-size-base);
+  background: var(--g360-bg);
+  color: var(--g360-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color var(--g360-transition), color var(--g360-transition);
+}
+
+/* Evitar que el contenido se pierda en pantallas ultra-anchas */
+.main-content {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+main {
+  animation: g360-fade-in 0.4s ease-out;
+}
+
+app-root {
+  display: block;
+  min-height: 100vh;
+}
+
+/* === UTILIDADES === */
+.g360-card {
+  background: var(--g360-surface);
+  border: 1px solid var(--g360-border);
+  border-radius: var(--g360-rounded);
+  padding: var(--g360-space-md);
+  box-shadow: var(--g360-shadow);
+}
+
+.g360-glass {
+  background: var(--g360-glass);
+  backdrop-filter: blur(var(--g360-blur));
+  -webkit-backdrop-filter: blur(var(--g360-blur));
+  border: 1px solid var(--g360-border);
+}
+
+.g360-btn {
+  background: var(--g360-accent);
+  color: var(--g360-bg);
+  border: none;
+  border-radius: var(--g360-rounded);
+  padding: var(--g360-space-sm) var(--g360-space-md);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--g360-transition);
+}
+
+.g360-btn:hover {
+  background: var(--g360-accent-dark);
+}
+
+.g360-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* === MODO CLARO === */
+:root[data-theme="light"] {
+  --g360-bg: #ffffff;
+  --g360-surface: #f5f5f5;
+  --g360-text: #1f2937;
+  --g360-muted: #52525b;
+  --g360-accent: #00796b;
+  --g360-accent-dark: #005f52;
+  --g360-border: rgba(0, 0, 0, 0.1);
+  --g360-glass: rgba(255, 255, 255, 0.75);
+  --g360-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* === ANIMACIONES COMPARTIDAS === */
+@keyframes g360-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes g360-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes g360-slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes g360-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes g360-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}

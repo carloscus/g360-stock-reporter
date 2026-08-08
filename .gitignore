@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Plantillas/assets del skill G360 (no parte de la app)
+g360/
