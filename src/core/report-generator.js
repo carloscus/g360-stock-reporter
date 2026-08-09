@@ -234,9 +234,10 @@ function createResumenSheet(ws, productos, includeInspeccion) {
 
   const lineas = {};
   productos.forEach((p) => {
-    if (!lineas[p.linea]) lineas[p.linea] = { codigos: 0, stock: 0 };
-    lineas[p.linea].codigos++;
-    lineas[p.linea].stock += getStockParaCalculo(p, includeInspeccion);
+    const id = p.linea_id || p.linea || 'Sin Línea';
+    if (!lineas[id]) lineas[id] = { codigos: 0, stock: 0 };
+    lineas[id].codigos++;
+    lineas[id].stock += getStockParaCalculo(p, includeInspeccion);
   });
 
   let lineaRow = lineaHeaderRow + 1;
@@ -268,6 +269,7 @@ function createResumenSheet(ws, productos, includeInspeccion) {
 
 /**
  * Crea la hoja de datos detallados con columnas de stock, cajas, almacenes.
+ * ORDEN por orden maestro (orden) + índice local #.
  */
 function createDataSheet(ws, titulo, productos, includeInspeccion, includePredespacho) {
   const headers = [
@@ -362,11 +364,9 @@ const CATEGORIAS_TODOS = ['REPRESENTADAS', 'VINIFAN', 'VINIBALL'];
  * Genera un reporte XLSX completo en memoria (browser).
  * Reemplaza generate-reports-excel.cjs.
  *
- * @param {string} categoria        - 'TODOS', 'VINIBALL', 'VINIFAN', 'REPRESENTADAS'
- * @param {Array}  productos        - productos enriquecidos (stock-service.js)
- * @param {Object} options          - { includeInspeccion, includePredespacho }
- * @param {string} lastUpdated      - timestamp ISO del API
- * @returns {Promise<Blob>}        - Blob listo para descargar
+ * Hojas por línea usando linea_id (01, 78, AD, 85, etc.)
+ * Cada hoja: ordenada por orden maestro + índice local #.
+ * Resumen: hipervínculos a cada hoja de línea.
  */
 export async function generateReportXLSX(categoria, productos, options = {}, lastUpdated = '') {
   const { includeInspeccion = false, includePredespacho = true } = options;
@@ -379,6 +379,9 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
     ? productos.filter((p) => CATEGORIAS_TODOS.includes(p.categoria))
     : productos.filter((p) => p.categoria === categoria);
 
+  // Ordenar por orden maestro (orden)
+  filtered.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
   filtered.forEach((p) => { if (lastUpdated) p.lastUpdated = lastUpdated; });
 
   const wb = new ExcelJS.Workbook();
@@ -389,18 +392,58 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   const wsResumen = wb.addWorksheet('Resumen');
   createResumenSheet(wsResumen, filtered, includeInspeccion);
 
-  // Agrupar por línea y crear una hoja por cada línea
-  const lineas = {};
+  // Agrupar por linea_id y crear una hoja por cada línea
+  const lineasPorId = {};
   filtered.forEach((p) => {
-    const linea = p.linea || 'Sin Línea';
-    if (!lineas[linea]) lineas[linea] = [];
-    lineas[linea].push(p);
+    const id = p.linea_id || 'ZZ';
+    if (!lineasPorId[id]) lineasPorId[id] = { name: p.linea || 'Sin Línea', items: [] };
+    lineasPorId[id].items.push(p);
   });
 
-  Object.entries(lineas).forEach(([linea, items]) => {
-    const sheetName = linea.substring(0, 31);
+  // Crear hojas por línea: nombre = {linea_id}_{slug}
+  Object.entries(lineasPorId).forEach(([lineaId, data]) => {
+    const nombreCorto = data.name.replace(/\s+/g, '_').toLowerCase().substring(0, 25);
+    const sheetName = `${lineaId}_${nombreCorto}`.substring(0, 31);
     const wsLinea = wb.addWorksheet(sheetName);
-    createDataSheet(wsLinea, linea, items, includeInspeccion, includePredespacho);
+    createDataSheet(wsLinea, data.name, data.items, includeInspeccion, includePredespacho);
+  });
+
+  // Agregar hipervínculos en el resumen para cada línea
+  const lineaStartRow = 17; // fila donde empieza la sección "POR LÍNEA"
+  const linkOffset = 2;
+  let rowIdx = lineaStartRow + linkOffset;
+
+  // Agregar columnas E y F para hipervínculos
+  wsResumen.getColumn('E').width = 20;
+  wsResumen.getCell(`A${lineaStartRow}`).value = '🔗 HIPERVÍNCULOS POR LÍNEA';
+  wsResumen.getCell(`A${lineaStartRow}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
+  wsResumen.getCell(`A${lineaStartRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
+  wsResumen.mergeCells(`A${lineaStartRow}:F${lineaStartRow}`);
+  wsResumen.getCell(`A${lineaStartRow}`).alignment = { vertical: 'middle', horizontal: 'center' };
+  wsResumen.getRow(lineaStartRow).height = 26;
+
+  rowIdx = lineaStartRow + 2;
+  Object.entries(lineasPorId).forEach(([lineaId, data]) => {
+    const nombreCorto = data.name.replace(/\s+/g, '_').toLowerCase().substring(0, 25);
+    const sheetName = `${lineaId}_${nombreCorto}`.substring(0, 31);
+
+    wsResumen.getCell(`A${rowIdx}`).value = lineaId;
+    wsResumen.getCell(`A${rowIdx}`).font = { bold: true, size: 10 };
+    wsResumen.getCell(`A${rowIdx}`).alignment = { horizontal: 'center' };
+
+    wsResumen.getCell(`B${rowIdx}`).value = data.name;
+    wsResumen.getCell(`B${rowIdx}`).font = { size: 10 };
+    wsResumen.getCell(`B${rowIdx}`).alignment = { horizontal: 'left' };
+
+    // Hipervínculo
+    wsResumen.getCell(`C${rowIdx}`).value = sheetName;
+    wsResumen.getCell(`C${rowIdx}`).font = { size: 10, color: { argb: COLORS.secondary }, underline: true };
+    wsResumen.getCell(`C${rowIdx}`).hyperlink = { target: `'${sheetName}'!A1`, tooltip: `Ir a ${sheetName}` };
+
+    wsResumen.getCell(`D${rowIdx}`).value = data.items.length;
+    wsResumen.getCell(`D${rowIdx}`).alignment = { horizontal: 'center' };
+
+    rowIdx++;
   });
 
   // Browser: writeBuffer → Blob

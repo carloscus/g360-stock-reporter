@@ -20,6 +20,12 @@ function _normalizarLinea(lineaApi) {
   return lineaApi.replace(/^[\w-]+\s*-\s*/, '').trim();
 }
 
+function _extractLineaId(lineaApi) {
+  if (!lineaApi) return '';
+  const match = lineaApi.match(/^(01[0-9A-Z]+) -/);
+  return match ? match[1].substring(2) : '';
+}
+
 function _generarNombreCorto(descripcion) {
   if (!descripcion) return '';
   let clean = descripcion.replace(/^(N|INFLABLE|PELOTA|BALÓN|JUEGO)\s+/i, '').trim();
@@ -72,6 +78,7 @@ function _transformAPIResponse(apiData) {
       nombre: item.descripcion,
       nombre_corto: item.nombre_corto || _generarNombreCorto(item.descripcion),
       linea: _normalizarLinea(item.linea),
+      linea_id: item.linea_id || _extractLineaId(item.linea),
       categoria: item.categoria,
       un_bx: unBx,
       precio: item.precio || 0,
