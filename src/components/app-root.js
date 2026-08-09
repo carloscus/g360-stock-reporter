@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file app-root.js
  * @description Componente raíz con layout responsive mobile-first.
  *              Carga datos una sola vez y los distribuye a los paneles via store.
@@ -8,13 +8,14 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { subscribe, isStale, getTimeAgo, getCacheStatus } from '../core/stock-store.js';
-import { generateAlerts, loadStockData, refreshInBackground } from '../core/stock-service.js';
+import { subscribe, isStale, getTimeAgo } from '../core/stock-store.js';
+import { generateAlerts, loadStockData } from '../core/stock-service.js';
 import './stock-header.js';
 import './pulso-form.js';
 import './estado-panel.js';
 import './stock-alerts.js';
 import './stock-search.js';
+import './secundarios-panel.js';
 
 // Definición única de navegación para evitar duplicación
 const NAV_ITEMS = [
@@ -55,6 +56,16 @@ const NAV_ITEMS = [
       <path d="M21 21l-4.35-4.35" />
     `,
   },
+  {
+    id: 'secundarios',
+    label: 'Sin Catálogo',
+    icon: '📦',
+    title: 'SKUs fuera de catálogo',
+    svg: html`
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18M9 21V9" />
+    `,
+  },
 ];
 
 export class AppRoot extends LitElement {
@@ -64,8 +75,6 @@ export class AppRoot extends LitElement {
     theme: { type: String },
     alertCount: { type: Number },
     _stockData: { type: Object },
-    _dataAge: { type: String },
-    _isStale: { type: Boolean },
   };
 
   static styles = css`
@@ -159,6 +168,21 @@ export class AppRoot extends LitElement {
       border-color: var(--g360-accent);
       color: var(--g360-accent);
     }
+
+    .refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    .refresh-btn.refreshing .spinner-mini {
+      display: inline-block;
+      width: 0.9em;
+      height: 0.9em;
+      border: 1.2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     main {
       padding: 0 0 80px 0;
@@ -401,6 +425,7 @@ export class AppRoot extends LitElement {
     this.theme = localStorage.getItem('g360-theme') || 'dark';
     this.alertCount = 0;
     this._stockData = null;
+    this._isRefreshing = false;
     this._applyTheme();
   }
 
@@ -408,25 +433,51 @@ export class AppRoot extends LitElement {
     // Suscribirse al store para recibir datos una sola vez
     this._unsubscribe = subscribe((data) => {
       this._stockData = data;
-      this.alertCount = data.productos.length > 0
-        ? generateAlerts(data.productos).filter(a => a.type === 'critical').length
+      const catalogados = (data.productos || [])
+        .filter((p) => (p.estado_linea || '').trim() !== '');
+      this.alertCount = catalogados.length > 0
+        ? generateAlerts(catalogados).filter(a => a.type === 'critical').length
         : 0;
       this._updateDataStatus(data);
     });
 
-    // Cargar datos
+    // Cargar datos (devuelve cache al instante; refresh se gestiona abajo)
     loadStockData();
 
-    // Programar refresh en background cuando los datos cumplan 15 min
+    // Auto-refresh en background: refresca cada minuto si los datos están
+    // stale (>15 min). El backend expone cache_expiro_en=900s.
     this._stalenessCheck = setInterval(() => {
-      if (isStale()) refreshInBackground();
-    }, 60 * 1000); // revisar cada minuto
+      if (isStale()) this._autoRefresh();
+    }, 60 * 1000);
+
+    // Refresh proactivo al volver a la pestaña / enfocar la ventana,
+    // sin necesidad de que el usuario pulse "Actualizar".
+    this._onVisible = () => {
+      if (document.visibilityState === 'visible' && isStale()) this._autoRefresh();
+    };
+    document.addEventListener('visibilitychange', this._onVisible);
+    window.addEventListener('focus', this._onVisible);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._unsubscribe) this._unsubscribe();
     if (this._stalenessCheck) clearInterval(this._stalenessCheck);
+    document.removeEventListener('visibilitychange', this._onVisible);
+    window.removeEventListener('focus', this._onVisible);
+  }
+
+  async _autoRefresh() {
+    if (this._isRefreshing) return;
+    this._isRefreshing = true;
+    try {
+      // La data llega vía subscriber (saveData notifica); esto solo marca estado
+      await loadStockData(true);
+    } catch (error) {
+      console.warn('[app-root] Refresh falló:', error);
+    } finally {
+      this._isRefreshing = false;
+    }
   }
 
   _applyTheme() {
@@ -504,6 +555,8 @@ export class AppRoot extends LitElement {
         return html`<estado-panel .stockData=${this._stockData}></estado-panel>`;
       case 'alertas':
         return html`<stock-alerts .stockData=${this._stockData}></stock-alerts>`;
+      case 'secundarios':
+        return html`<secundarios-panel .stockData=${this._stockData}></secundarios-panel>`;
       case 'pulso':
       default:
         return html`<pulso-form .stockData=${this._stockData}></pulso-form>`;
@@ -532,7 +585,7 @@ export class AppRoot extends LitElement {
               <span class="status-text">
                 ${this._isStale ? '🔄 Actualizando…' : `Datos actualizados hace ${this._dataAge || '<1min'}`}
               </span>
-              ${this._isStale ? html`<button class="refresh-btn" @click=${() => loadStockData(true)}>↻</button>` : ''}
+              ${this._isStale ? html`<button class="refresh-btn ${this._isRefreshing ? 'refreshing' : ''}" title="Actualizar ahora" @click=${() => loadStockData(true)} disabled?=${this._isRefreshing}>${this._isRefreshing ? html`<span class="spinner-mini"></span>` : html`↻`}</button>` : ''}
             </div>
           ` : ''}
 

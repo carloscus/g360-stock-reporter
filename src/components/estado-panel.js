@@ -503,6 +503,44 @@ export class EstadoPanel extends LitElement {
     .kpi-section-header.open .chevron {
       transform: rotate(180deg);
     }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 4px 0 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: var(--g360-bg);
+      border: 1px solid var(--g360-border);
+      color: var(--g360-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .filter-chip.active {
+      background: rgba(0, 208, 132, 0.1);
+      border-color: var(--g360-accent);
+      color: var(--g360-accent);
+    }
+
+    .filter-chip .chip-count {
+      background: var(--g360-surface);
+      border: 1px solid var(--g360-border);
+      border-radius: 10px;
+      padding: 0 6px;
+      font-size: 10px;
+    }
   `;
 
   constructor() {
@@ -514,11 +552,7 @@ export class EstadoPanel extends LitElement {
     this._showAllAlerts = false;
     this._expandedSection = null;
     this._expandedCategoria = null;
-    this._filteredLineaId = null;
-  }
-
-  _filterByLineaId(id) {
-    this._filteredLineaId = this._filteredLineaId === id ? null : id;
+    this._fullProductos = [];
   }
 
   _toggleSection(name) {
@@ -527,24 +561,14 @@ export class EstadoPanel extends LitElement {
 
   willUpdate(changedProperties) {
     if (changedProperties.has('stockData') && this.stockData) {
-      const productos = this.stockData.productos || [];
+      // Solo productos del catálogo (con estado de línea definido)
+      this._fullProductos = (this.stockData.productos || [])
+        .filter((p) => (p.estado_linea || '').trim() !== '');
       this.lastUpdated = this.stockData.lastUpdated || new Date().toISOString();
-      this.stats = calculateStats(productos);
-      this.kpis = calculateKPIs(productos);
-      this.alerts = generateAlerts(productos, 10);
-      // Compute linea_id distribution
-      this._lineaIds = this._computeLineaIds(productos);
-      this._sinCatalogoCount = productos.filter(p => p.sin_catalogo).length;
+      this.stats = calculateStats(this._fullProductos);
+      this.kpis = calculateKPIs(this._fullProductos);
+      this.alerts = generateAlerts(this._fullProductos, 10);
     }
-  }
-
-  _computeLineaIds(productos) {
-    const counts = {};
-    for (const p of productos) {
-      const id = p.linea_id || 'ZZ';
-      counts[id] = (counts[id] || 0) + 1;
-    }
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }
 
   _formatTimestamp(isoString) {
@@ -597,7 +621,6 @@ export class EstadoPanel extends LitElement {
   render() {
     const progress = this._getProgressPercent();
     const alerts = this.alerts;
-    const productos = this.stockData?.productos || [];
 
     return html`
       <div class="estado-header">
@@ -610,28 +633,6 @@ export class EstadoPanel extends LitElement {
         </div>
         <h2>Estado del Sistema</h2>
       </div>
-
-      <!-- Linea ID chips -->
-      <div class="linea-ids-section">
-        <div class="progress-title">Líneas (click para filtrar)</div>
-        <div class="linea-ids-chips">
-          <span class="linea-chip ${!this._filteredLineaId ? 'active' : ''}" @click=${() => this._filterByLineaId(null)}>
-            Todas (${this.stats.total})
-          </span>
-          ${this._lineaIds?.slice(0, 10).map(([id, cnt]) => html`
-            <span class="linea-chip ${this._filteredLineaId === id ? 'active' : ''}" @click=${() => this._filterByLineaId(id)}>
-              ${id} · ${cnt}
-            </span>
-          `)}
-        </div>
-      </div>
-
-      <!-- Sin catálogo badge -->
-      ${this._sinCatalogoCount > 0 ? html`
-        <div class="sin-catalogo-banner">
-          <span class="sin-catalogo-badge">${this._sinCatalogoCount} SKUs sin catálogo maestro</span>
-        </div>
-      ` : ''}
 
       <div class="stats-grid">
         <div class="stat-card highlight">

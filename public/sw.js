@@ -7,8 +7,8 @@
  * @version 2.0.0
  */
 
-const CACHE_NAME = 'stockpulse-v5';
-const DATA_CACHE = 'stockpulse-data-v5';
+const CACHE_NAME = 'stockpulse-v4';
+const DATA_CACHE = 'stockpulse-data-v4';
 
 const STATIC_ASSETS = [
   '/g360-stock-reporter/',

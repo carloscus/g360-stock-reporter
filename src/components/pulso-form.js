@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file pulso-form.js
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
@@ -24,6 +24,7 @@ export class PulsoForm extends LitElement {
     isMobile: { type: Boolean },
     isSaved: { type: Boolean },
     includeInspeccion: { type: Boolean },
+    includeSecundarios: { type: Boolean },
     stockData: { type: Object },
   };
 
@@ -434,6 +435,7 @@ export class PulsoForm extends LitElement {
     this.isMobile = window.innerWidth < 768;
     this.isSaved = false;
     this.includeInspeccion = false;
+    this.includeSecundarios = false;
     this.stockData = null;
     this._bloqueoTimer = null;
     this._loadSavedData();
@@ -536,7 +538,7 @@ export class PulsoForm extends LitElement {
     this._resetearIntentos();
 
     this.dispatchEvent(new CustomEvent('generar-reporte', {
-      detail: { categoria: this.categoria, includeInspeccion: this.includeInspeccion },
+      detail: { categoria: this.categoria, includeInspeccion: this.includeInspeccion, includeSecundarios: this.includeSecundarios },
       bubbles: true,
       composed: true,
     }));
@@ -551,7 +553,13 @@ export class PulsoForm extends LitElement {
     this.email = '';
     this.categoria = 'TODOS';
     this.includeInspeccion = false;
+    this.includeSecundarios = false;
     this._resetearIntentos();
+  }
+
+  _clearCredentials() {
+    try { localStorage.removeItem('stock_user'); } catch { /* noop */ }
+    this.isSaved = false;
   }
 
   async _handleDownload() {
@@ -562,17 +570,18 @@ export class PulsoForm extends LitElement {
 
       this.isGenerating = true;
 
-      const blob = await generateReportXLSX(
-        this.categoria,
-        data.productos,
-        { includeInspeccion: this.includeInspeccion, includePredespacho: true },
-        lastUpdated,
-      );
+const blob = await generateReportXLSX(
+          this.categoria,
+          data.productos,
+          { includeInspeccion: this.includeInspeccion, includeSecundarios: this.includeSecundarios },
+          lastUpdated,
+        );
 
       const filename = generarNombreArchivo(this.categoria);
       downloadBlob(blob, filename);
 
-      this._saveData();
+      // Limpiar credenciales para exigir reingreso en la siguiente descarga
+      this._clearCredentials();
       this._handleCloseModal();
     } catch (error) {
       console.error('[pulso-form] Error generando XLSX:', error);
@@ -585,19 +594,65 @@ export class PulsoForm extends LitElement {
   async _handleShare(type) {
     this._saveData();
 
-    const fecha = new Date().toLocaleString('es-PE', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
+    try {
+      const { generateReportXLSX, downloadBlob, generarNombreArchivo } =
+        await import('../core/report-generator.js');
 
-    const text = `📊 StockPulse - ${this.categoria}\n📅 ${fecha}\n👤 ${this.nombre}`;
+      const data = this.stockData;
+      const lastUpdated = data.lastUpdated || '';
+      const fecha = new Date().toLocaleString('es-PE', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+      const text = `📊 StockPulse - ${this.categoria}\n📅 ${fecha}\n👤 ${this.nombre}`;
+      const filename = generarNombreArchivo(this.categoria);
+      const mimeType =
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-    if (type === 'whatsapp') {
-      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    } else if (type === 'email') {
-      window.location.href = `mailto:?subject=StockPulse ${this.categoria}&body=${encodeURIComponent(text)}`;
+      this.isGenerating = true;
+      const blob = await generateReportXLSX(
+        this.categoria, data.productos,
+        { includeInspeccion: this.includeInspeccion, includeSecundarios: this.includeSecundarios },
+        lastUpdated,
+      );
+      this.isGenerating = false;
+
+      const file = new File([blob], filename, { type: mimeType });
+
+      // Web Share API (mobile): envia el archivo COMO ADJUNTO a WhatsApp / Email
+      if (
+        navigator.share &&
+        navigator.canShare &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({
+            title: `StockPulse ${this.categoria}`,
+            text,
+            files: [file],
+            url: window.location.href,
+          });
+          this._handleCloseModal();
+          return;
+        } catch (err) {
+          console.warn('[pulso-form] navigator.share cancelado:', err);
+        }
+      }
+
+      // Fallback: descargar el adjunto y abrir share con texto informativo
+      downloadBlob(blob, filename);
+      const note = `\n\n📎 Archivo StockPulse descargado: ${filename}`;
+      if (type === 'whatsapp') {
+        window.open(`https://wa.me/?text=${encodeURIComponent(text + note)}`, '_blank');
+      } else if (type === 'email') {
+        window.location.href =
+          `mailto:?subject=StockPulse%20${encodeURIComponent(this.categoria)}&body=${encodeURIComponent(text + note)}`;
+      }
+      this._handleCloseModal();
+    } catch (error) {
+      console.error('[pulso-form] Error generando/compartiendo XLSX:', error);
+      this.isGenerating = false;
     }
-
-    this._handleCloseModal();
   }
 
   render() {
@@ -632,6 +687,7 @@ export class PulsoForm extends LitElement {
           <li>Selecciona el tipo de reporte</li>
           <li>Presiona "Real Time" para generar → DESCARGAR AHORA</li>
           <li>Opcional: activa "Incluir almacén 121 (Inspección)" para stock transitorio</li>
+          <li>Opcional: activa "Incluir SKUs fuera de catálogo" para exportar esos ítems en una hoja adicional</li>
         </ol>
       </div>
 
@@ -720,6 +776,15 @@ export class PulsoForm extends LitElement {
               @click=${(e) => e.stopPropagation()}
             />
             <label>Incluir almacén 121 (Inspección)</label>
+          </div>
+          <div class="checkbox-row ${this.includeSecundarios ? 'checked' : ''}" @click=${() => this.includeSecundarios = !this.includeSecundarios}>
+            <input
+              type="checkbox"
+              .checked=${this.includeSecundarios}
+              @change=${(e) => this.includeSecundarios = e.target.checked}
+              @click=${(e) => e.stopPropagation()}
+            />
+            <label>Incluir SKUs fuera de catálogo (hoja adicional)</label>
           </div>
         </div>
 

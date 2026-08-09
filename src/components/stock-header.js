@@ -12,6 +12,7 @@ export class StockHeader extends LitElement {
   static properties = {
     titulo: { type: String },
     theme: { type: String },
+    installable: { type: Boolean },
   };
 
   static styles = css`
@@ -122,6 +123,40 @@ export class StockHeader extends LitElement {
       background: rgba(0, 208, 132, 0.05);
     }
 
+    .install-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 40px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--g360-border);
+      background: var(--g360-bg);
+      color: var(--g360-accent);
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .install-btn:hover {
+      border-color: var(--g360-accent);
+      background: rgba(0, 208, 132, 0.1);
+    }
+
+    @media (max-width: 600px) {
+      .install-btn {
+        width: 40px;
+        padding: 0;
+        justify-content: center;
+        font-size: 0;
+      }
+      .install-btn span {
+        font-size: 18px;
+      }
+    }
+
     .theme-emoji {
       font-size: 20px;
       line-height: 1;
@@ -140,6 +175,24 @@ export class StockHeader extends LitElement {
   constructor() {
     super();
     this.titulo = 'CIPSA Stock';
+    this.installable = false;
+    this._onInstallable = (e) => { this.installable = e.detail; };
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener('pwa-installable', this._onInstallable);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('pwa-installable', this._onInstallable);
+  }
+
+  _install() {
+    if (typeof window.promptInstall === 'function') {
+      window.promptInstall();
+    }
   }
 
   _dispatchTheme() {
@@ -159,6 +212,17 @@ export class StockHeader extends LitElement {
           </div>
         </div>
         <div class="header-right">
+          ${this.installable ? html`
+            <button
+              class="install-btn"
+              @click=${this._install}
+              title="Instalar aplicación"
+              aria-label="Instalar aplicación"
+            >
+              <span aria-hidden="true">⬇️</span>
+              Instalar
+            </button>
+          ` : ''}
           <button
             class="icon-btn theme-btn"
             @click=${this._dispatchTheme}

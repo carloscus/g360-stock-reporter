@@ -141,7 +141,11 @@ export function saveData(data, meta = {}) {
 // ── Suscripción (pub/sub) ─────────────────────────────────────────
 export function subscribe(fn) {
   _subscribers.add(fn);
-  if (_cachedData) fn(_cachedData);
+  // Forzar carga desde sessionStorage/localStorage → memoria.
+  // Si no se hace, un arranque con cache pero sin memoria deja la UI en blanco
+  // hasta que saveData() notifique (p. ej. hasta que termine el fetch de API).
+  const mem = loadData();
+  if (mem) fn(mem);
   return () => {
     _subscribers.delete(fn);
     if (_subscribers.size === 0 && _stalenessTimer) {

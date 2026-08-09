@@ -199,7 +199,10 @@ export class StockAlerts extends LitElement {
 
   willUpdate(changedProperties) {
     if (changedProperties.has('stockData') && this.stockData) {
-      this.alerts = generateAlerts(this.stockData.productos);
+      // Solo productos del catálogo (con estado de línea definido)
+      const catalogados = (this.stockData.productos || [])
+        .filter((p) => (p.estado_linea || '').trim() !== '');
+      this.alerts = generateAlerts(catalogados);
     }
   }
 

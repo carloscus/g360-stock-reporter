@@ -234,10 +234,9 @@ function createResumenSheet(ws, productos, includeInspeccion) {
 
   const lineas = {};
   productos.forEach((p) => {
-    const id = p.linea_id || p.linea || 'Sin Línea';
-    if (!lineas[id]) lineas[id] = { codigos: 0, stock: 0 };
-    lineas[id].codigos++;
-    lineas[id].stock += getStockParaCalculo(p, includeInspeccion);
+    if (!lineas[p.linea]) lineas[p.linea] = { codigos: 0, stock: 0 };
+    lineas[p.linea].codigos++;
+    lineas[p.linea].stock += getStockParaCalculo(p, includeInspeccion);
   });
 
   let lineaRow = lineaHeaderRow + 1;
@@ -269,9 +268,8 @@ function createResumenSheet(ws, productos, includeInspeccion) {
 
 /**
  * Crea la hoja de datos detallados con columnas de stock, cajas, almacenes.
- * ORDEN por orden maestro (orden) + índice local #.
  */
-function createDataSheet(ws, titulo, productos, includeInspeccion, includePredespacho) {
+function createDataSheet(ws, titulo, productos, includeInspeccion) {
   const headers = [
     { header: '#', key: 'item', width: 5 },
     { header: 'Código', key: 'sku', width: 12 },
@@ -285,17 +283,9 @@ function createDataSheet(ws, titulo, productos, includeInspeccion, includePredes
     headers.push({ header: '121 (Inspección)', key: 'inspeccion', width: 16 });
   }
 
-  headers.push({ header: 'Stock', key: 'stock', width: 10 });
+  headers.push({ header: 'Disponible', key: 'stock', width: 10 });
   headers.push({ header: 'Cajas', key: 'bx', width: 8 });
-
-  if (includePredespacho) {
-    headers.push({ header: 'Predespacho', key: 'predespacho', width: 12 });
-  }
-
   headers.push({ header: 'Estado', key: 'estado', width: 12 });
-
-  headers.push({ header: 'Orden', key: 'orden', width: 8 });
-  headers.push({ header: 'Línea ID', key: 'lineaId', width: 10 });
 
   ws.columns = headers;
   ws.autoFilter = `A1:${String.fromCharCode(64 + headers.length)}1`;
@@ -314,11 +304,7 @@ function createDataSheet(ws, titulo, productos, includeInspeccion, includePredes
     const stockBase = getStockParaCalculo(p, includeInspeccion);
     const bx = Math.floor(stockBase / (p.un_bx || 1));
     const inspeccionStock = p.almacenes_venta?.find((a) => a.esInspeccion)?.disponible ?? 0;
-    const predespacho = p.almacenes_venta
-      ? p.almacenes_venta.reduce((sum, a) => sum + (a.predespacho || 0), 0)
-      : p.predespacho || 0;
-
-    const estado = getEstado(bx);
+const estado = getEstado(bx);
 
     const rowData = {
       item: index + 1,
@@ -326,12 +312,6 @@ function createDataSheet(ws, titulo, productos, includeInspeccion, includePredes
       nombre: p.nombre,
       linea: p.linea,
       unBx: p.un_bx,
-      stock: p.almacenes_venta
-        ? p.almacenes_venta.reduce((sum, a) => sum + a.disponible, 0)
-        : stockBase,
-      bx: bx,
-      orden: p.orden || 0,
-      lineaId: p.linea_id || '',
     };
 
     if (includeInspeccion) {
@@ -342,10 +322,7 @@ function createDataSheet(ws, titulo, productos, includeInspeccion, includePredes
       ? p.almacenes_venta.reduce((sum, a) => sum + a.disponible, 0)
       : stockBase;
     rowData.bx = bx;
-    if (includePredespacho) rowData.predespacho = predespacho;
     rowData.estado = estado.text;
-    rowData.orden = p.orden || 0;
-    rowData.lineaId = p.linea_id || '';
 
     const row = ws.addRow(rowData);
 
@@ -375,23 +352,29 @@ const CATEGORIAS_TODOS = ['REPRESENTADAS', 'VINIFAN', 'VINIBALL'];
  * Genera un reporte XLSX completo en memoria (browser).
  * Reemplaza generate-reports-excel.cjs.
  *
- * Hojas por línea usando linea_id (01, 78, AD, 85, etc.)
- * Cada hoja: ordenada por orden maestro + índice local #.
- * Resumen: hipervínculos a cada hoja de línea.
+ * @param {string} categoria        - 'TODOS', 'VINIBALL', 'VINIFAN', 'REPRESENTADAS'
+ * @param {Array}  productos        - productos enriquecidos (stock-service.js)
+ * @param {Object} options          - { includeInspeccion, includeSecundarios }
+ * @param {string} lastUpdated      - timestamp ISO del API
+ * @returns {Promise<Blob>}        - Blob listo para descargar
  */
 export async function generateReportXLSX(categoria, productos, options = {}, lastUpdated = '') {
-  const { includeInspeccion = false, includePredespacho = true } = options;
+  const { includeInspeccion = false, includeSecundarios = false } = options;
 
   if (!ExcelJS) {
     throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
   }
 
-  const filtered = categoria === 'TODOS'
-    ? productos.filter((p) => CATEGORIAS_TODOS.includes(p.categoria))
-    : productos.filter((p) => p.categoria === categoria);
+  // Un producto pertenece al catálogo maestro cuando tiene estado de línea.
+  const esCatalogo = (p) => (p.estado_linea || '').trim() !== '';
 
-  // Ordenar por orden maestro (orden)
-  filtered.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  // Los reportes descargados incluyen solo SKUs del catálogo maestro.
+  // Los secundarios (sin estado de línea) van a la hoja "Sin Catálogo".
+  const filtered = productos.filter((p) => {
+    if (!esCatalogo(p)) return false;
+    if (categoria === 'TODOS') return CATEGORIAS_TODOS.includes(p.categoria);
+    return p.categoria === categoria;
+  });
 
   filtered.forEach((p) => { if (lastUpdated) p.lastUpdated = lastUpdated; });
 
@@ -403,69 +386,30 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   const wsResumen = wb.addWorksheet('Resumen');
   createResumenSheet(wsResumen, filtered, includeInspeccion);
 
-  // Agrupar por linea_id y crear una hoja por cada línea
-  const lineasPorId = {};
+  // Agrupar por línea y crear una hoja por cada línea
+  const lineas = {};
   filtered.forEach((p) => {
-    const id = p.linea_id || 'ZZ';
-    if (!lineasPorId[id]) lineasPorId[id] = { name: p.linea || 'Sin Línea', items: [] };
-    lineasPorId[id].items.push(p);
+    const linea = p.linea || 'Sin Línea';
+    if (!lineas[linea]) lineas[linea] = [];
+    lineas[linea].push(p);
   });
 
-  // Primero: crear todas las hojas de línea y guardar los nombres
-  const sheetNames = [];
-  Object.entries(lineasPorId).forEach(([lineaId, data]) => {
-    const nombreCorto = data.name.replace(/\s+/g, '_').toLowerCase().substring(0, 25);
-    const sheetName = `${lineaId}_${nombreCorto}`.substring(0, 31);
-    sheetNames.push({ id: lineaId, name: data.name, sheetName });
+  Object.entries(lineas).forEach(([linea, items]) => {
+    const sheetName = linea.substring(0, 31);
     const wsLinea = wb.addWorksheet(sheetName);
-    createDataSheet(wsLinea, data.name, data.items, includeInspeccion, includePredespacho);
+    createDataSheet(wsLinea, linea, items, includeInspeccion);
   });
 
-  // Segundo: agregar hipervínculos en el resumen (después de la sección POR LÍNEA)
-  // Encontrar la última fila con datos en el resumen
-  let lastDataRow = 1;
-  wsResumen.eachRow((row, rowNumber) => {
-    if (row.getCell(1).value !== null) lastDataRow = rowNumber;
-  });
-  const linkStartRow = lastDataRow + 3;
-
-  // Título de sección
-  wsResumen.getCell(`A${linkStartRow}`).value = '🔗 IR A HOJA POR LÍNEA';
-  wsResumen.getCell(`A${linkStartRow}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
-  wsResumen.getCell(`A${linkStartRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
-  wsResumen.mergeCells(`A${linkStartRow}:D${linkStartRow}`);
-  wsResumen.getCell(`A${linkStartRow}`).alignment = { vertical: 'middle', horizontal: 'center' };
-  wsResumen.getRow(linkStartRow).height = 26;
-
-  // Encabezados
-  const hdrRow = linkStartRow + 1;
-  ['ID', 'Línea', 'Hoja', 'Items'].forEach((h, i) => {
-    const col = String.fromCharCode(65 + i);
-    const cell = wsResumen.getCell(`${col}${hdrRow}`);
-    cell.value = h;
-    cell.font = { bold: true, size: 10 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-    cell.alignment = { horizontal: 'center' };
-  });
-
-  // Filas con hipervínculos
-  sheetNames.forEach((s, idx) => {
-    const r = hdrRow + 1 + idx;
-    wsResumen.getCell(`A${r}`).value = s.id;
-    wsResumen.getCell(`A${r}`).font = { bold: true, size: 10 };
-    wsResumen.getCell(`A${r}`).alignment = { horizontal: 'center' };
-
-    wsResumen.getCell(`B${r}`).value = s.name;
-    wsResumen.getCell(`B${r}`).font = { size: 10 };
-    wsResumen.getCell(`B${r}`).alignment = { horizontal: 'left' };
-
-    wsResumen.getCell(`C${r}`).value = s.sheetName;
-    wsResumen.getCell(`C${r}`).font = { size: 10, color: { argb: COLORS.secondary }, underline: true };
-    wsResumen.getCell(`C${r}`).hyperlink = { target: `'${s.sheetName}'!A1`, tooltip: `Ir a ${s.sheetName}` };
-
-    wsResumen.getCell(`D${r}`).value = lineasPorId[s.id]?.items.length || 0;
-    wsResumen.getCell(`D${r}`).alignment = { horizontal: 'center' };
-  });
+  // Hoja adicional: SKUs fuera de catálogo (solo categorías principales)
+  if (includeSecundarios) {
+    const secundarios = productos.filter(
+      (p) => !esCatalogo(p) && CATEGORIAS_TODOS.includes(p.categoria)
+    );
+    if (secundarios.length > 0) {
+      const wsSinCat = wb.addWorksheet('Sin Catálogo');
+      createDataSheet(wsSinCat, 'Sin Catálogo', secundarios, includeInspeccion);
+    }
+  }
 
   // Browser: writeBuffer → Blob
   const buffer = await wb.xlsx.writeBuffer();

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file stock-service.js
  * @description Servicio para cargar datos de stock desde el API backend.
  *              El API ya enriquece cada item con un_bx, peso_kg, ean13, ean14.
@@ -8,22 +8,17 @@
  * @version 7.0.0
  */
 
-import { saveData, loadData, isStale } from './stock-store.js';
+import { saveData, loadData, isStale, getMeta } from './stock-store.js';
 import { INSPECCION_ALMACEN } from './stock-store.js';
 
-const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026';
+const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026&enrich=true';
+const API_TIMEOUT_MS = 25000;
 
 let _loading = null;
 
 function _normalizarLinea(lineaApi) {
   if (!lineaApi) return '';
   return lineaApi.replace(/^[\w-]+\s*-\s*/, '').trim();
-}
-
-function _extractLineaId(lineaApi) {
-  if (!lineaApi) return '';
-  const match = lineaApi.match(/^(01[0-9A-Z]+) -/);
-  return match ? match[1].substring(2) : '';
 }
 
 function _generarNombreCorto(descripcion) {
@@ -54,9 +49,15 @@ function _calcularStockTotal(almacenesVenta) {
  * Retorna null si ya hay datos en cache (manejado por loadStockData).
  */
 export async function fetchFromAPI() {
-  const response = await fetch(STOCK_API_URL, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`API HTTP ${response.status}`);
-  return response.json();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  try {
+    const response = await fetch(STOCK_API_URL, { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) throw new Error(`API HTTP ${response.status}`);
+    return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -78,15 +79,12 @@ function _transformAPIResponse(apiData) {
       nombre: item.descripcion,
       nombre_corto: item.nombre_corto || _generarNombreCorto(item.descripcion),
       linea: _normalizarLinea(item.linea),
-      linea_id: item.linea_id || _extractLineaId(item.linea),
       categoria: item.categoria,
       un_bx: unBx,
       precio: item.precio || 0,
       peso_kg: item.peso_kg || 0,
       ean13: item.ean13 || '',
       estado_linea: item.estado_linea || '',
-      orden: item.orden || 0,
-      sin_catalogo: item.sin_catalogo || false,
       stock,
       bx: Math.floor(stock / unBx),
       predespacho: almacenesVenta.reduce((sum, a) => sum + a.predespacho, 0),
@@ -100,15 +98,7 @@ function _transformAPIResponse(apiData) {
   }
 
   return {
-    productos: productos.sort((a, b) => {
-      // Items with orden=0 go LAST (same logic as master catalog)
-      const aOrd = a.orden || 0;
-      const bOrd = b.orden || 0;
-      if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
-      if (aOrd === 0) return 1;
-      if (bOrd === 0) return -1;
-      return aOrd - bOrd;
-    }),
+    productos,
     stockMap,
     lastUpdated: apiData.metadata?.fecha_descarga || new Date().toISOString(),
     totalAlmacenes: apiData.metadata?.total_almacenes || almacenesCount(apiData.items),
@@ -133,21 +123,30 @@ function almacenesCount(items) {
  * @param {boolean} force - Si true, ignora cache y refresca desde API
  */
 export async function loadStockData(force = false) {
-  // 1. Memoria
+  // 1. Cache (instantáneo). El refresh en background cuando los datos están
+  //    stale (>15 min) lo orquesta app-root vía setInterval + visibilitychange.
   const mem = loadData();
   if (mem && !force) return mem;
 
-  // 2. Verificar frescura — API se actualiza cada ~15 min
-  const stale = isStale();
-  if (!stale && mem) return mem;
-
+  // 2. Evitar fetches concurrentes
   if (_loading && !force) return _loading;
 
   _loading = (async () => {
     try {
       const apiData = await fetchFromAPI();
+      const newRevision = apiData.metadata?.fecha_descarga || apiData.metadata?.fecha_actualizacion || '';
+      const prevRevision = getMeta()?.revision;
+
+      // Si el backend no regeneró el reporte (misma revision), no notificar para
+      // evitar refrescos innecesarios de la UI (datos idénticos).
+      if (newRevision && prevRevision === newRevision) {
+        console.log('[stock-service] Datos sin cambios, refresco omitido');
+        const cached = loadData();
+        if (cached) return cached;
+      }
+
       const data = _transformAPIResponse(apiData);
-      saveData(data, { source: 'api', version: 'v1' });
+      saveData(data, { source: 'api', version: 'v1', revision: newRevision });
       return data;
     } catch (error) {
       console.warn('[stock-service] API no disponible:', error.message);

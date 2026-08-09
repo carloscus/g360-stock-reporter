@@ -43,20 +43,30 @@ if ('serviceWorker' in navigator && location.hostname !== 'localhost' && locatio
 
 // Prompt de instalación PWA
 let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-  console.log('[PWA] Instalable detectado');
-});
 
-export function promptInstall() {
-  if (!deferredPrompt) return null;
+window.promptInstall = function promptInstall() {
+  if (!deferredPrompt) return false;
   deferredPrompt.prompt();
   deferredPrompt.userChoice.then((result) => {
     if (result.outcome === 'accepted') {
       console.log('[PWA] Instalado');
     }
     deferredPrompt = null;
+    window.dispatchEvent(new CustomEvent('pwa-installable', { detail: false }));
   });
-  return deferredPrompt;
-}
+  return true;
+};
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  console.log('[PWA] Instalable detectado');
+  window.dispatchEvent(new CustomEvent('pwa-installable', { detail: true }));
+});
+
+// Ocultar botón si la app ya está instalada
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  console.log('[PWA] Instalada');
+  window.dispatchEvent(new CustomEvent('pwa-installable', { detail: false }));
+});
