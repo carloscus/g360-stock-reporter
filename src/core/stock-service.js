@@ -100,7 +100,15 @@ function _transformAPIResponse(apiData) {
   }
 
   return {
-    productos: productos.sort((a, b) => (a.orden || 0) - (b.orden || 0)),
+    productos: productos.sort((a, b) => {
+      // Items with orden=0 go LAST (same logic as master catalog)
+      const aOrd = a.orden || 0;
+      const bOrd = b.orden || 0;
+      if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
+      if (aOrd === 0) return 1;
+      if (bOrd === 0) return -1;
+      return aOrd - bOrd;
+    }),
     stockMap,
     lastUpdated: apiData.metadata?.fecha_descarga || new Date().toISOString(),
     totalAlmacenes: apiData.metadata?.total_almacenes || almacenesCount(apiData.items),

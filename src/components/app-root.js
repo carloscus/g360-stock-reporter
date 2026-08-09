@@ -64,6 +64,8 @@ export class AppRoot extends LitElement {
     theme: { type: String },
     alertCount: { type: Number },
     _stockData: { type: Object },
+    _dataAge: { type: String },
+    _isStale: { type: Boolean },
   };
 
   static styles = css`
