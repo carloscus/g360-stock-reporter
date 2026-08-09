@@ -1,0 +1,9 @@
+# Disabled: using custom deploy.yml instead
+# This file overrides GitHub's built-in pages-build-deployment
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Built-in workflow disabled - using custom deploy.yml"
