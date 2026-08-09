@@ -222,6 +222,42 @@ export class StockSearch extends LitElement {
       margin-top: 6px;
     }
 
+    .badges-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge.sin-catalogo {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge.estado {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3b82f6;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge.orden {
+      background: rgba(0, 208, 132, 0.15);
+      color: var(--g360-accent);
+      border: 1px solid rgba(0, 208, 132, 0.3);
+    }
+
     .almacen-chip {
       display: inline-flex;
       align-items: center;
@@ -338,6 +374,7 @@ export class StockSearch extends LitElement {
     this._fuse = null;
     this._recognition = null;
     this._unsubscribe = null;
+    this.sinCatalogo = false;
   }
 
   connectedCallback() {
@@ -353,10 +390,9 @@ export class StockSearch extends LitElement {
   }
 
   updated() {
-    if (this.stockData) {
+    if (this.stockData && !this._fuse) {
       this.isLoading = false;
       this._initFuse();
-      if (this.searchTerm.length >= 2) this._search();
     }
   }
 
@@ -387,7 +423,7 @@ export class StockSearch extends LitElement {
   }
 
   _initFuse() {
-    if (!Fuse || !this.stockData?.productos) return;
+    if (!Fuse || !this.stockData?.productos || this._fuse) return;
     const options = {
       keys: [
         { name: 'sku', weight: 2 },
@@ -404,7 +440,6 @@ export class StockSearch extends LitElement {
       minMatchCharLength: 2,
     };
     this._fuse = new Fuse(this.stockData.productos, options);
-    if (this.searchTerm.length >= 2) this._search();
   }
 
   _handleInput(e) {
@@ -430,6 +465,11 @@ export class StockSearch extends LitElement {
 
   _toggleInStock() {
     this.onlyInStock = !this.onlyInStock;
+    if (this.searchTerm.length >= 2) this._search();
+  }
+
+  _toggleSinCatalogo() {
+    this.sinCatalogo = !this.sinCatalogo;
     if (this.searchTerm.length >= 2) this._search();
   }
 
@@ -463,6 +503,9 @@ export class StockSearch extends LitElement {
     let fuseResults = this._fuse.search(term);
     if (this.onlyInStock) {
       fuseResults = fuseResults.filter(res => (res.item.stock || 0) > 0);
+    }
+    if (this.sinCatalogo) {
+      fuseResults = fuseResults.filter(res => (res.item.orden || 0) === 0);
     }
     this.results = fuseResults.map(res => ({
       p: res.item,
@@ -562,6 +605,16 @@ export class StockSearch extends LitElement {
           </svg>
           Solo con stock
         </div>
+        <div
+          class="filter-chip ${this.sinCatalogo ? 'active' : ''}"
+          @click=${this._toggleSinCatalogo}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <polyline points="13 2 13 9 20 9"/>
+          </svg>
+          Sin catálogo
+        </div>
       </div>
 
       <div class="search-results">
@@ -599,6 +652,12 @@ export class StockSearch extends LitElement {
             </span>
           `);
 
+          // Badges
+          const badges = [];
+          if (p.sin_catalogo) badges.push(html`<span class="badge sin-catalogo">Sin catálogo</span>`);
+          if (p.estado_linea) badges.push(html`<span class="badge estado">${p.estado_linea}</span>`);
+          if (p.orden > 0) badges.push(html`<span class="badge orden">#${p.orden}</span>`);
+
           return html`
             <div
               class="result-item ${idx === this.selectedIndex ? 'active' : ''}"
@@ -611,13 +670,14 @@ export class StockSearch extends LitElement {
                 <span class="sku">${unsafeHTML(sku)}</span>
                 <span class="nombre">${unsafeHTML(nombre)}</span>
                 <span class="linea">${unsafeHTML(linea)}</span>
+                <div class="badges-row">${badges}</div>
                 <div class="almacenes-row">${almacenesChips}</div>
               </div>
               <div class="result-right">
                 <span class="categoria">${unsafeHTML(categoria)}</span>
                 <div class="stock-info">
-                  <span class="stock-value ${stockClass}">${stock}</span>
-                  <span class="ean">${bx} bx | pred ${p.predespacho || 0}</span>
+                  <span class="stock-value ${stockClass}">${stock} u</span>
+                  <span class="ean">${bx} bx</span>
                 </div>
               </div>
             </div>

@@ -514,6 +514,11 @@ export class EstadoPanel extends LitElement {
     this._showAllAlerts = false;
     this._expandedSection = null;
     this._expandedCategoria = null;
+    this._filteredLineaId = null;
+  }
+
+  _filterByLineaId(id) {
+    this._filteredLineaId = this._filteredLineaId === id ? null : id;
   }
 
   _toggleSection(name) {
@@ -527,7 +532,19 @@ export class EstadoPanel extends LitElement {
       this.stats = calculateStats(productos);
       this.kpis = calculateKPIs(productos);
       this.alerts = generateAlerts(productos, 10);
+      // Compute linea_id distribution
+      this._lineaIds = this._computeLineaIds(productos);
+      this._sinCatalogoCount = productos.filter(p => p.sin_catalogo).length;
     }
+  }
+
+  _computeLineaIds(productos) {
+    const counts = {};
+    for (const p of productos) {
+      const id = p.linea_id || 'ZZ';
+      counts[id] = (counts[id] || 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
   }
 
   _formatTimestamp(isoString) {
@@ -580,6 +597,7 @@ export class EstadoPanel extends LitElement {
   render() {
     const progress = this._getProgressPercent();
     const alerts = this.alerts;
+    const productos = this.stockData?.productos || [];
 
     return html`
       <div class="estado-header">
@@ -592,6 +610,28 @@ export class EstadoPanel extends LitElement {
         </div>
         <h2>Estado del Sistema</h2>
       </div>
+
+      <!-- Linea ID chips -->
+      <div class="linea-ids-section">
+        <div class="progress-title">Líneas (click para filtrar)</div>
+        <div class="linea-ids-chips">
+          <span class="linea-chip ${!this._filteredLineaId ? 'active' : ''}" @click=${() => this._filterByLineaId(null)}>
+            Todas (${this.stats.total})
+          </span>
+          ${this._lineaIds?.slice(0, 10).map(([id, cnt]) => html`
+            <span class="linea-chip ${this._filteredLineaId === id ? 'active' : ''}" @click=${() => this._filterByLineaId(id)}>
+              ${id} · ${cnt}
+            </span>
+          `)}
+        </div>
+      </div>
+
+      <!-- Sin catálogo badge -->
+      ${this._sinCatalogoCount > 0 ? html`
+        <div class="sin-catalogo-banner">
+          <span class="sin-catalogo-badge">${this._sinCatalogoCount} SKUs sin catálogo maestro</span>
+        </div>
+      ` : ''}
 
       <div class="stats-grid">
         <div class="stat-card highlight">

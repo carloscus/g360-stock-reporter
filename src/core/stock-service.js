@@ -11,7 +11,7 @@
 import { saveData, loadData, isStale } from './stock-store.js';
 import { INSPECCION_ALMACEN } from './stock-store.js';
 
-const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026&enrich=true';
+const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026';
 
 let _loading = null;
 
@@ -85,6 +85,8 @@ function _transformAPIResponse(apiData) {
       peso_kg: item.peso_kg || 0,
       ean13: item.ean13 || '',
       estado_linea: item.estado_linea || '',
+      orden: item.orden || 0,
+      sin_catalogo: item.sin_catalogo || false,
       stock,
       bx: Math.floor(stock / unBx),
       predespacho: almacenesVenta.reduce((sum, a) => sum + a.predespacho, 0),
@@ -98,7 +100,7 @@ function _transformAPIResponse(apiData) {
   }
 
   return {
-    productos,
+    productos: productos.sort((a, b) => (a.orden || 0) - (b.orden || 0)),
     stockMap,
     lastUpdated: apiData.metadata?.fecha_descarga || new Date().toISOString(),
     totalAlmacenes: apiData.metadata?.total_almacenes || almacenesCount(apiData.items),

@@ -294,6 +294,9 @@ function createDataSheet(ws, titulo, productos, includeInspeccion, includePredes
 
   headers.push({ header: 'Estado', key: 'estado', width: 12 });
 
+  headers.push({ header: 'Orden', key: 'orden', width: 8 });
+  headers.push({ header: 'Línea ID', key: 'lineaId', width: 10 });
+
   ws.columns = headers;
   ws.autoFilter = `A1:${String.fromCharCode(64 + headers.length)}1`;
   ws.views = [{ state: 'frozen', ySplit: 1 }];
@@ -323,6 +326,12 @@ function createDataSheet(ws, titulo, productos, includeInspeccion, includePredes
       nombre: p.nombre,
       linea: p.linea,
       unBx: p.un_bx,
+      stock: p.almacenes_venta
+        ? p.almacenes_venta.reduce((sum, a) => sum + a.disponible, 0)
+        : stockBase,
+      bx: bx,
+      orden: p.orden || 0,
+      lineaId: p.linea_id || '',
     };
 
     if (includeInspeccion) {
@@ -335,6 +344,8 @@ function createDataSheet(ws, titulo, productos, includeInspeccion, includePredes
     rowData.bx = bx;
     if (includePredespacho) rowData.predespacho = predespacho;
     rowData.estado = estado.text;
+    rowData.orden = p.orden || 0;
+    rowData.lineaId = p.linea_id || '';
 
     const row = ws.addRow(rowData);
 
@@ -400,50 +411,60 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
     lineasPorId[id].items.push(p);
   });
 
-  // Crear hojas por línea: nombre = {linea_id}_{slug}
+  // Primero: crear todas las hojas de línea y guardar los nombres
+  const sheetNames = [];
   Object.entries(lineasPorId).forEach(([lineaId, data]) => {
     const nombreCorto = data.name.replace(/\s+/g, '_').toLowerCase().substring(0, 25);
     const sheetName = `${lineaId}_${nombreCorto}`.substring(0, 31);
+    sheetNames.push({ id: lineaId, name: data.name, sheetName });
     const wsLinea = wb.addWorksheet(sheetName);
     createDataSheet(wsLinea, data.name, data.items, includeInspeccion, includePredespacho);
   });
 
-  // Agregar hipervínculos en el resumen para cada línea
-  const lineaStartRow = 17; // fila donde empieza la sección "POR LÍNEA"
-  const linkOffset = 2;
-  let rowIdx = lineaStartRow + linkOffset;
+  // Segundo: agregar hipervínculos en el resumen (después de la sección POR LÍNEA)
+  // Encontrar la última fila con datos en el resumen
+  let lastDataRow = 1;
+  wsResumen.eachRow((row, rowNumber) => {
+    if (row.getCell(1).value !== null) lastDataRow = rowNumber;
+  });
+  const linkStartRow = lastDataRow + 3;
 
-  // Agregar columnas E y F para hipervínculos
-  wsResumen.getColumn('E').width = 20;
-  wsResumen.getCell(`A${lineaStartRow}`).value = '🔗 HIPERVÍNCULOS POR LÍNEA';
-  wsResumen.getCell(`A${lineaStartRow}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
-  wsResumen.getCell(`A${lineaStartRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
-  wsResumen.mergeCells(`A${lineaStartRow}:F${lineaStartRow}`);
-  wsResumen.getCell(`A${lineaStartRow}`).alignment = { vertical: 'middle', horizontal: 'center' };
-  wsResumen.getRow(lineaStartRow).height = 26;
+  // Título de sección
+  wsResumen.getCell(`A${linkStartRow}`).value = '🔗 IR A HOJA POR LÍNEA';
+  wsResumen.getCell(`A${linkStartRow}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
+  wsResumen.getCell(`A${linkStartRow}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
+  wsResumen.mergeCells(`A${linkStartRow}:D${linkStartRow}`);
+  wsResumen.getCell(`A${linkStartRow}`).alignment = { vertical: 'middle', horizontal: 'center' };
+  wsResumen.getRow(linkStartRow).height = 26;
 
-  rowIdx = lineaStartRow + 2;
-  Object.entries(lineasPorId).forEach(([lineaId, data]) => {
-    const nombreCorto = data.name.replace(/\s+/g, '_').toLowerCase().substring(0, 25);
-    const sheetName = `${lineaId}_${nombreCorto}`.substring(0, 31);
+  // Encabezados
+  const hdrRow = linkStartRow + 1;
+  ['ID', 'Línea', 'Hoja', 'Items'].forEach((h, i) => {
+    const col = String.fromCharCode(65 + i);
+    const cell = wsResumen.getCell(`${col}${hdrRow}`);
+    cell.value = h;
+    cell.font = { bold: true, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+    cell.alignment = { horizontal: 'center' };
+  });
 
-    wsResumen.getCell(`A${rowIdx}`).value = lineaId;
-    wsResumen.getCell(`A${rowIdx}`).font = { bold: true, size: 10 };
-    wsResumen.getCell(`A${rowIdx}`).alignment = { horizontal: 'center' };
+  // Filas con hipervínculos
+  sheetNames.forEach((s, idx) => {
+    const r = hdrRow + 1 + idx;
+    wsResumen.getCell(`A${r}`).value = s.id;
+    wsResumen.getCell(`A${r}`).font = { bold: true, size: 10 };
+    wsResumen.getCell(`A${r}`).alignment = { horizontal: 'center' };
 
-    wsResumen.getCell(`B${rowIdx}`).value = data.name;
-    wsResumen.getCell(`B${rowIdx}`).font = { size: 10 };
-    wsResumen.getCell(`B${rowIdx}`).alignment = { horizontal: 'left' };
+    wsResumen.getCell(`B${r}`).value = s.name;
+    wsResumen.getCell(`B${r}`).font = { size: 10 };
+    wsResumen.getCell(`B${r}`).alignment = { horizontal: 'left' };
 
-    // Hipervínculo
-    wsResumen.getCell(`C${rowIdx}`).value = sheetName;
-    wsResumen.getCell(`C${rowIdx}`).font = { size: 10, color: { argb: COLORS.secondary }, underline: true };
-    wsResumen.getCell(`C${rowIdx}`).hyperlink = { target: `'${sheetName}'!A1`, tooltip: `Ir a ${sheetName}` };
+    wsResumen.getCell(`C${r}`).value = s.sheetName;
+    wsResumen.getCell(`C${r}`).font = { size: 10, color: { argb: COLORS.secondary }, underline: true };
+    wsResumen.getCell(`C${r}`).hyperlink = { target: `'${s.sheetName}'!A1`, tooltip: `Ir a ${s.sheetName}` };
 
-    wsResumen.getCell(`D${rowIdx}`).value = data.items.length;
-    wsResumen.getCell(`D${rowIdx}`).alignment = { horizontal: 'center' };
-
-    rowIdx++;
+    wsResumen.getCell(`D${r}`).value = lineasPorId[s.id]?.items.length || 0;
+    wsResumen.getCell(`D${r}`).alignment = { horizontal: 'center' };
   });
 
   // Browser: writeBuffer → Blob
