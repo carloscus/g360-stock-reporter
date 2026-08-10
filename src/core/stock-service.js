@@ -13,8 +13,35 @@ import { INSPECCION_ALMACEN } from './stock-store.js';
 
 const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026';
 const API_TIMEOUT_MS = 25000;
+// Probe: solo metadata (limit=1, ~1 KB) para detectar regeneración sin descargar
+// el payload completo (~1.3 MB). Timeout amplio porque el proceso puede estar
+// dormido en Render y tardar 30-60s en despertar y regenerar el reporte.
+const PROBE_TIMEOUT_MS = 60000;
+
+// Ventana horaria del backend (Lima, UTC-5): Lun-Sáb 07:00 a 22:59.
+// El API solo regenera el reporte dentro de esta ventana (ver _es_momento_valido).
+const LIMA_TZ_OFFSET_MS = -5 * 60 * 60 * 1000;
 
 let _loading = null;
+
+/**
+ * ¿Estamos dentro de la ventana operativa del reporte (Lun-Sáb 07:00-22:59 hora Lima)?
+ * Domingo y madrugadas el backend no regenera datos.
+ */
+export function isBusinessHours(date = new Date()) {
+  const lima = new Date(date.getTime() + LIMA_TZ_OFFSET_MS);
+  const weekday = lima.getUTCDay(); // 0 = domingo
+  const hour = lima.getUTCHours();
+  return weekday !== 0 && hour >= 7 && hour < 23;
+}
+
+export function formatLimaTime(isoString) {
+  if (!isoString) return '—';
+  const lima = new Date(new Date(isoString).getTime() + LIMA_TZ_OFFSET_MS);
+  const hh = String(lima.getUTCHours()).padStart(2, '0');
+  const mm = String(lima.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
 
 function _normalizarLinea(lineaApi) {
   if (!lineaApi) return '';
@@ -55,6 +82,34 @@ export async function fetchFromAPI() {
     const response = await fetch(STOCK_API_URL, { cache: 'no-store', signal: controller.signal });
     if (!response.ok) throw new Error(`API HTTP ${response.status}`);
     return response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Sonda ligera (limit=1, ~1 KB) que además sirve como "wake":
+ * despierta el proceso dormido en Render y, si el cache expiró y estamos
+ * en ventana horaria, el backend regenera el reporte en el mismo request.
+ * Devuelve solo la metadata para comparar `fecha_descarga` sin bajar 1.3 MB.
+ */
+export async function probeStockData() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    // Sin parametro offset/hay que incluir limit=1 para no traer items.
+    // El backend calcula cache_expirado y despierta/regenera igual aqui.
+    const url = `${STOCK_API_URL}&limit=1`;
+    const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) throw new Error(`Probe HTTP ${response.status}`);
+    const data = await response.json();
+    return {
+      fecha_descarga: data?.metadata?.fecha_descarga || '',
+      cache_expirado: data?.metadata?.cache_expirado === true,
+      cache_expiro_en: data?.metadata?.cache_expiro_en || 900,
+      total_skus: data?.metadata?.total_skus || 0,
+      en_ventana: isBusinessHours(),
+    };
   } finally {
     clearTimeout(timer);
   }

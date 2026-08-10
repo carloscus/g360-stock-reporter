@@ -9,7 +9,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { subscribe, isStale, getTimeAgo, getMeta } from '../core/stock-store.js';
-import { generateAlerts, loadStockData } from '../core/stock-service.js';
+import { generateAlerts, loadStockData, probeStockData, isBusinessHours, formatLimaTime } from '../core/stock-service.js';
 import './stock-header.js';
 import './pulso-form.js';
 import './estado-panel.js';
@@ -78,6 +78,10 @@ export class AppRoot extends LitElement {
     _dataAge: { type: String },
     _isStale: { type: Boolean },
     _isRefreshing: { type: Boolean },
+    _serverDate: { type: String },
+    _localCopyAge: { type: String },
+    _serverDateHMS: { type: String },
+    _localCopyHMS: { type: String },
   };
 
   static styles = css`
@@ -153,6 +157,18 @@ export class AppRoot extends LitElement {
 
     .status-text {
       flex: 1;
+    }
+
+    .status-sub {
+      display: block;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      opacity: 0.8;
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .refresh-btn {
@@ -447,16 +463,21 @@ export class AppRoot extends LitElement {
     // Cargar datos (devuelve cache al instante; refresh se gestiona abajo)
     loadStockData();
 
-    // Auto-refresh en background: refresca cada minuto si los datos están
-    // stale (>15 min). El backend expone cache_expiro_en=900s.
-    this._stalenessCheck = setInterval(() => {
-      if (isStale()) this._autoRefresh();
-    }, 60 * 1000);
+    // Ticker de UI: actualiza el contador "hace X" cada minuto sin tocar la red.
+    this._uiTicker = setInterval(() => this._updateDataStatus(), 60 * 1000);
 
-    // Refresh proactivo al volver a la pestaña / enfocar la ventana,
-    // sin necesidad de que el usuario pulse "Actualizar".
+    // SONOEO INTELIGENTE cada 10 minutos dentro de la ventana horaria
+    // (Lun-Sáb 07:00-22:59 Lima; el API solo regenera ahí, cada ~15 min).
+    // _pollServer() usa un probe de ~1 KB que además "despierta" el proceso
+    // dormido de Render; si el backend regeneró (cambió fecha_descarga),
+    // solo entonces descarga el payload completo (~1.3 MB).
+    this._probeTimer = setInterval(() => {
+      this._pollServer();
+    }, 10 * 60 * 1000);
+
+    // Probe inmediato al arrancar (dentro de ventana) + al enfocar la ventana.
     this._onVisible = () => {
-      if (document.visibilityState === 'visible' && isStale()) this._autoRefresh();
+      if (document.visibilityState === 'visible') this._pollServer();
     };
     document.addEventListener('visibilitychange', this._onVisible);
     window.addEventListener('focus', this._onVisible);
@@ -465,13 +486,37 @@ export class AppRoot extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._unsubscribe) this._unsubscribe();
-    if (this._stalenessCheck) clearInterval(this._stalenessCheck);
+    if (this._uiTicker) clearInterval(this._uiTicker);
+    if (this._probeTimer) clearInterval(this._probeTimer);
     document.removeEventListener('visibilitychange', this._onVisible);
     window.removeEventListener('focus', this._onVisible);
   }
 
-  async _autoRefresh() {
-    await this._manualRefresh();
+  /**
+   * Sonda de frescura cada 10 min: 1 request de ~1 KB.
+   *  - Fuera de ventana horaria: no hace red (el API no regenera de todos modos).
+   *  - Dentro de ventana: wake + compara fecha_descarga contra nuestra revision.
+   *    Si el servidor generó un reporte nuevo, descarga el payload completo
+   *    (auto-update, sin pedir confirmación).
+   */
+  async _pollServer() {
+    if (this._isRefreshing) return;
+    if (!isBusinessHours()) {
+      this._updateDataStatus();
+      return;
+    }
+    try {
+      const probe = await probeStockData();
+      const prev = getMeta()?.revision || '';
+      if (probe?.fecha_descarga && probe.fecha_descarga !== prev) {
+        console.log('[app-root] Reporte nuevo detectado, descargando…');
+        await this._manualRefresh();
+      }
+      this._updateDataStatus();
+    } catch (error) {
+      console.warn('[app-root] Probe falló:', error);
+      this._updateDataStatus();
+    }
   }
 
   async _manualRefresh() {
@@ -498,8 +543,17 @@ export class AppRoot extends LitElement {
 
   _updateDataStatus() {
     const meta = getMeta();
-    this._dataAge = meta && meta.lastFetchedAt ? getTimeAgo(meta.lastFetchedAt) : null;
-    this._isStale = isStale();
+    // Fecha del reporte en el servidor (revision) → edad real del dato.
+    const serverDate = meta?.revision;
+    this._serverDate = serverDate ? serverDate : null;
+    this._serverDateHMS = serverDate ? formatLimaTime(serverDate) : null;
+    this._dataAge = serverDate ? getTimeAgo(serverDate) : null;
+    // Fuera de la ventana (domingo/madrugada) no marcamos stale: no hay nada que regenerar.
+    this._isStale = isBusinessHours() && serverDate ? isStale(serverDate) : false;
+    // Copia local: cuándo la descargamos nosotros (lastFetchedAt).
+    const localTs = meta?.lastFetchedAt;
+    this._localCopyAge = localTs ? getTimeAgo(localTs) : null;
+    this._localCopyHMS = localTs ? formatLimaTime(localTs) : null;
   }
 
   _openSearch() {
@@ -582,16 +636,26 @@ export class AppRoot extends LitElement {
             .theme=${this.theme}
           ></stock-header>
 
-          <!-- Status bar: frescura de datos + botón "forzar actualización" -->
+          <!-- Status bar: frescura del reporte del servidor + copia local + botón fuerza-refresh -->
           ${this._stockData ? html`
-            <div class="data-status ${this._isStale ? 'stale' : 'fresh'}">
+            <div
+              class="data-status ${this._isStale ? 'stale' : 'fresh'}"
+              title="${this._serverDate ? `Reporte del servidor: ${this._serverDateHMS}` : 'Sin reporte'}"
+            >
               <span class="status-dot"></span>
               <span class="status-text">
-                ${this._isStale ? '🔄 Datos desactualizados — pulsa ↻ para actualizar' : `Datos actualizados hace ${this._dataAge || '<1min'}`}
+                ${this._isStale
+                  ? `🔄 Reporte del servidor: hace ${this._dataAge || '>15 min'} — actualizando…`
+                  : `Reporte del sistema: hace ${this._dataAge || '<1min'}`}
+                ${this._localCopyAge ? html`
+                  <span class="status-sub" title="Cuándo tu copia se descargó (localStorage)">
+                    Tu copia local: ${this._localCopyAge} · ${this._localCopyHMS}
+                  </span>
+                ` : ''}
               </span>
               <button
                 class="refresh-btn ${this._isRefreshing ? 'refreshing' : ''}"
-                title="Actualizar ahora"
+                title="Descargar reporte ahora"
                 aria-label="Actualizar datos"
                 @click=${this._manualRefresh}
                 ?disabled=${this._isRefreshing}
