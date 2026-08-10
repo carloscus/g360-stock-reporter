@@ -277,7 +277,7 @@ function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
 
     ws.getCell(`A${lineaRow}`).value = {
       text: lin,
-      hyperlink: `#${sheetNameForLinea(lin)}!A1`,
+      hyperlink: `#'${sheetNameForLinea(lin).replace(/'/g, "''")}'!A1`,
       tooltip: `Ir a la hoja ${lin}`,
     };
     ws.getCell(`A${lineaRow}`).font = { bold: true, size: 10, color: { argb: color }, underline: true };
