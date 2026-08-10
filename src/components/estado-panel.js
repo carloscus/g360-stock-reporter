@@ -441,14 +441,15 @@ export class EstadoPanel extends LitElement {
     this.requestUpdate();
   }
 
-  _getFilteredSkus(skus) {
-    let filtered = skus;
+  _getFilteredSkus(categoria) {
+    const productos = this.stockData?.productos || [];
+    let filtered = productos.filter(p => (p.categoria || 'SIN CATEGORIA') === categoria);
     if (this.filter === 'sinStock') {
-      filtered = skus.filter(s => s.bx === 0);
+      filtered = filtered.filter(s => s.bx === 0);
     } else if (this.filter === 'bajoStock') {
-      filtered = skus.filter(s => s.bx > 0 && s.bx < 10);
+      filtered = filtered.filter(s => s.bx > 0 && s.bx < 10);
     } else if (this.filter === 'conStock') {
-      filtered = skus.filter(s => s.bx >= 10);
+      filtered = filtered.filter(s => s.bx >= 10);
     }
     if (this.query) {
       const q = this.query.toLowerCase();
