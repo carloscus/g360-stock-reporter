@@ -508,8 +508,10 @@ export class AppRoot extends LitElement {
     const meta = data?.lastUpdated;
     if (meta) {
       this._dataAge = getTimeAgo(meta);
-      this._isStale = isStale(meta);
     }
+    // Use lastFetchedAt (when we saved to localStorage) for staleness check
+    const metaRecord = getMeta();
+    this._isStale = isStale(metaRecord?.lastFetchedAt);
   }
 
   _openSearch() {
