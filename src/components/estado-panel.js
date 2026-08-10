@@ -505,7 +505,7 @@ export class EstadoPanel extends LitElement {
 
     const categorias = this.kpis.porCategoria || [];
     const totalCajas = this.kpis.cajasTotal || 0;
-    const valorTotal = this.kpis.valorInventario || 0;
+    
 
     return html`
       <div class="header">
@@ -588,7 +588,7 @@ export class EstadoPanel extends LitElement {
                 <span class="section-name">${cat.nombre}</span>
                 <span class="section-count">${cat.skus} SKUs</span>
               </div>
-              <span class="section-value">${cat.valor.toLocaleString('es-PE', { maximumFractionDigits: 0 })}</span>
+              
             </div>
             ${expanded ? html`
               <div class="section-body">
@@ -622,10 +622,7 @@ export class EstadoPanel extends LitElement {
                         <span class="detail-label">Unidades</span>
                         <span class="detail-value">${s.stock}</span>
                       </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Precio</span>
-                        <span class="detail-value">${s.precio}</span>
-                      </div>
+
                       <div class="detail-row">
                         <span class="detail-label">Peso</span>
                         <span class="detail-value">${s.peso_kg} kg</span>
