@@ -20,6 +20,7 @@ export class StockAlerts extends LitElement {
       display: block;
       padding: 24px;
       margin: 0 auto;
+      max-width: 900px;
     }
 
     .header {
