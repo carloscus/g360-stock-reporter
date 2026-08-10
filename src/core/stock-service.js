@@ -11,7 +11,7 @@
 import { saveData, loadData, isStale, getMeta } from './stock-store.js';
 import { INSPECCION_ALMACEN } from './stock-store.js';
 
-const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026&enrich=true';
+const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026';
 const API_TIMEOUT_MS = 25000;
 
 let _loading = null;
