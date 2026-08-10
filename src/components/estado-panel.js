@@ -601,8 +601,17 @@ export class EstadoPanel extends LitElement {
       sinCatalogo: (p) => (p.estado_linea || '').trim() === '',
     };
     const filtro = filtros[tipo] || filtros.conStock;
-    for (const p of productos) {
-      if (!filtro(p)) continue;
+    const ordenados = productos
+      .filter(filtro)
+      .sort((a, b) => {
+        const aOrd = a.orden || 0;
+        const bOrd = b.orden || 0;
+        if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
+        if (aOrd === 0) return 1;
+        if (bOrd === 0) return -1;
+        return aOrd - bOrd;
+      });
+    for (const p of ordenados) {
       rows.push([
         p.sku,
         p.nombre_corto || p.nombre || '',

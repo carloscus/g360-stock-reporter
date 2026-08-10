@@ -34,6 +34,21 @@ const getEstado = (bx) => {
 };
 
 /**
+ * Ordena productos por el campo `orden` del API (catálogo maestro).
+ * Los ítems sin orden (0) van al final; dentro del mismo orden, por SKU.
+ */
+function sortByOrden(items) {
+  return [...items].sort((a, b) => {
+    const aOrd = a.orden || 0;
+    const bOrd = b.orden || 0;
+    if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
+    if (aOrd === 0) return 1;
+    if (bOrd === 0) return -1;
+    return aOrd - bOrd;
+  });
+}
+
+/**
  * Calcula el stock sin incluir el almacén de inspección (121).
  * @param {Object} producto - Producto enriquecido con almacenes_venta[]
  * @returns {number} stock disponible sin 121
@@ -409,7 +424,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   Object.entries(lineas).forEach(([linea, items]) => {
     const sheetName = linea.substring(0, 31);
     const wsLinea = wb.addWorksheet(sheetName);
-    createDataSheet(wsLinea, linea, items, includeInspeccion);
+    createDataSheet(wsLinea, linea, sortByOrden(items), includeInspeccion);
   });
 
   // Hoja adicional: SKUs fuera de catálogo (solo categorías principales)
@@ -419,7 +434,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
     );
     if (secundarios.length > 0) {
       const wsSinCat = wb.addWorksheet('Sin Catálogo');
-      createDataSheet(wsSinCat, 'Sin Catálogo', secundarios, includeInspeccion);
+      createDataSheet(wsSinCat, 'Sin Catálogo', sortByOrden(secundarios), includeInspeccion);
     }
   }
 
