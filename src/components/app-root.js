@@ -57,7 +57,7 @@ const NAV_ITEMS = [
     `,
   },
   {
-    id: 'secundarios',
+    id: 'sincatalogo',
     label: 'Sin Catálogo',
     icon: '📦',
     title: 'SKUs fuera de catálogo',
@@ -613,7 +613,7 @@ export class AppRoot extends LitElement {
         return html`<estado-panel .stockData=${this._stockData}></estado-panel>`;
       case 'alertas':
         return html`<stock-alerts .stockData=${this._stockData}></stock-alerts>`;
-      case 'secundarios':
+      case 'sincatalogo':
         return html`<sin-catalogo-panel .stockData=${this._stockData}></sin-catalogo-panel>`;
       case 'pulso':
       default:

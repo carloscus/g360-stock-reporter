@@ -75,16 +75,6 @@ body {
   transition: background-color var(--g360-transition), color var(--g360-transition);
 }
 
-/* Evitar que el contenido se pierda en pantallas ultra-anchas */
-.main-content {
-  max-width: 1600px;
-  margin: 0 auto;
-}
-
-main {
-  animation: g360-fade-in 0.4s ease-out;
-}
-
 app-root {
   display: block;
   min-height: 100vh;
