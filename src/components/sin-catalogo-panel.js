@@ -1,5 +1,5 @@
 ﻿/**
- * @file secundarios-panel.js
+ * @file sin-catalogo-panel.js
  * @description Lista de productos fuera de catálogo (SKUs sin estado de línea,
  *              sin coincidencia en catálogo maestro) que aún conservan stock.
  *              Útil para detectar ítems nuevos, sin movimiento o próximos a descontinuar.
@@ -9,7 +9,7 @@
 
 import { LitElement, html, css } from 'lit';
 
-export class SecundariosPanel extends LitElement {
+export class SinCatalogoPanel extends LitElement {
   static properties = {
     stockData: { type: Object },
     filter: { type: String },
@@ -433,4 +433,4 @@ export class SecundariosPanel extends LitElement {
   }
 }
 
-customElements.define('secundarios-panel', SecundariosPanel);
+customElements.define('sin-catalogo-panel', SinCatalogoPanel);

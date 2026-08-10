@@ -15,7 +15,7 @@ import './pulso-form.js';
 import './estado-panel.js';
 import './stock-alerts.js';
 import './stock-search.js';
-import './secundarios-panel.js';
+import './sin-catalogo-panel.js';
 
 // Definición única de navegación para evitar duplicación
 const NAV_ITEMS = [
@@ -614,7 +614,7 @@ export class AppRoot extends LitElement {
       case 'alertas':
         return html`<stock-alerts .stockData=${this._stockData}></stock-alerts>`;
       case 'secundarios':
-        return html`<secundarios-panel .stockData=${this._stockData}></secundarios-panel>`;
+        return html`<sin-catalogo-panel .stockData=${this._stockData}></sin-catalogo-panel>`;
       case 'pulso':
       default:
         return html`<pulso-form .stockData=${this._stockData}></pulso-form>`;

@@ -1,5 +1,5 @@
 ﻿{
-  "name": "StockPulse CIPSA — Inventario en Tiempo Real",
+  "name": "StockPulse CIPSA",
   "short_name": "StockPulse",
   "description": "Consulta de stock y generación de reportes de inventario para CIPSA",
   "start_url": "./",
