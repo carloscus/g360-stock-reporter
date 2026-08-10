@@ -61,7 +61,7 @@ function getStockParaCalculo(producto, includeInspeccion) {
  * Crea la hoja "Resumen" con KPIs, totales por categoría y línea.
  * Migrado de createResumenSheet() en generate-reports-excel.cjs.
  */
-function createResumenSheet(ws, productos, includeInspeccion) {
+function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
   ws.getColumn('A').width = 22;
   ws.getColumn('B').width = 12;
   ws.getColumn('C').width = 15;
@@ -83,6 +83,14 @@ function createResumenSheet(ws, productos, includeInspeccion) {
   ws.getCell('A2').font = { size: 10, color: { argb: COLORS.grayText } };
   ws.getCell('A2').alignment = { horizontal: 'center' };
   ws.getRow(2).height = 20;
+
+  // ===== AUTOR =====
+  ws.mergeCells('A3:D3');
+  const autorPart = autor ? `👤 ${autor.nombre}${autor.email ? ` <${autor.email}>` : ''}` : '';
+  ws.getCell('A3').value = [autorPart, '🛠 g360-stock-reporter'].filter(Boolean).join(' | ');
+  ws.getCell('A3').font = { italic: true, size: 9, color: { argb: COLORS.grayText } };
+  ws.getCell('A3').alignment = { horizontal: 'center' };
+  ws.getRow(3).height = 18;
 
   // ===== KPI CARDS =====
   const totalUnidades = productos.reduce(
@@ -359,7 +367,7 @@ const CATEGORIAS_TODOS = ['REPRESENTADAS', 'VINIFAN', 'VINIBALL'];
  * @returns {Promise<Blob>}        - Blob listo para descargar
  */
 export async function generateReportXLSX(categoria, productos, options = {}, lastUpdated = '') {
-  const { includeInspeccion = false, includeSecundarios = false } = options;
+  const { includeInspeccion = false, includeSecundarios = false, autor = null } = options;
 
   if (!ExcelJS) {
     throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
@@ -381,10 +389,14 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   const wb = new ExcelJS.Workbook();
   wb.properties.title = `StockPulse - ${categoria}`;
   wb.properties.created = new Date();
+  if (autor) {
+    wb.creator = `${autor.nombre}${autor.email ? ` <${autor.email}>` : ''}`;
+    wb.lastModifiedBy = 'g360-stock-reporter';
+  }
 
   // Hoja 1: Resumen (KPIs)
   const wsResumen = wb.addWorksheet('Resumen');
-  createResumenSheet(wsResumen, filtered, includeInspeccion);
+  createResumenSheet(wsResumen, filtered, includeInspeccion, autor);
 
   // Agrupar por línea y crear una hoja por cada línea
   const lineas = {};

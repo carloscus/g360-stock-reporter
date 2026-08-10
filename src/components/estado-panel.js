@@ -585,7 +585,14 @@ export class EstadoPanel extends LitElement {
   }
 
   _exportCSV(tipo = 'conStock') {
-    const rows = [['SKU', 'Nombre', 'Linea', 'Categoria', 'Cajas', 'Unidades', 'Precio', 'Estado']];
+    const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
+    const rows = [
+      ['Autor', 'g360-stock-reporter'],
+      ['Reporte', `StockPulse_${labels[tipo]}`],
+      ['Generado', new Date().toLocaleString('es-PE')],
+      [],
+      ['SKU', 'Nombre', 'Linea', 'Categoria', 'Cajas', 'Unidades', 'Precio', 'Estado']
+    ];
     const productos = this.stockData?.productos || [];
     const filtros = {
       conStock: (p) => p.bx >= 10,
@@ -611,7 +618,6 @@ export class EstadoPanel extends LitElement {
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
     a.href = url;
     a.download = `StockPulse_${labels[tipo]}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();

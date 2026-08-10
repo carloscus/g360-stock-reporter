@@ -573,9 +573,14 @@ export class PulsoForm extends LitElement {
 const blob = await generateReportXLSX(
           this.categoria,
           data.productos,
-          { includeInspeccion: this.includeInspeccion, includeSecundarios: this.includeSecundarios },
+          {
+            includeInspeccion: this.includeInspeccion,
+            includeSecundarios: this.includeSecundarios,
+            autor: { nombre: this.nombre, email: this.email },
+          },
           lastUpdated,
         );
+      this.isGenerating = false;
 
       const filename = generarNombreArchivo(this.categoria);
       downloadBlob(blob, filename);
@@ -612,7 +617,11 @@ const blob = await generateReportXLSX(
       this.isGenerating = true;
       const blob = await generateReportXLSX(
         this.categoria, data.productos,
-        { includeInspeccion: this.includeInspeccion, includeSecundarios: this.includeSecundarios },
+        {
+          includeInspeccion: this.includeInspeccion,
+          includeSecundarios: this.includeSecundarios,
+          autor: { nombre: this.nombre, email: this.email },
+        },
         lastUpdated,
       );
       this.isGenerating = false;
