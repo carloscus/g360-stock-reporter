@@ -480,6 +480,20 @@ export class AppRoot extends LitElement {
     }
   }
 
+  async _manualRefresh() {
+    if (this._isRefreshing) return;
+    this._isRefreshing = true;
+    this.requestUpdate();
+    try {
+      await loadStockData(true);
+    } catch (e) {
+      console.warn('[app-root] Manual refresh failed:', e);
+    } finally {
+      this._isRefreshing = false;
+      this.requestUpdate();
+    }
+  }
+
   _applyTheme() {
     document.documentElement.setAttribute('data-theme', this.theme);
   }
