@@ -427,7 +427,7 @@ export class EstadoPanel extends LitElement {
     if (this._expandedCategories.has(cat)) {
       this._expandedCategories.delete(cat);
     } else {
-      this._expandedCategories.add(cat);
+      this._expandedCategories = new Set([...this._expandedCategories, cat]);
     }
     this.requestUpdate();
   }
