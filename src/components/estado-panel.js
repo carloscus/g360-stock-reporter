@@ -15,6 +15,7 @@ export class EstadoPanel extends LitElement {
     stockData: { type: Object },
     filter: { type: String },
     query: { type: String },
+    exportOpen: { type: Boolean },
   };
 
   static styles = css`
@@ -63,6 +64,62 @@ export class EstadoPanel extends LitElement {
     .export-btn:hover {
       border-color: var(--g360-accent);
       color: var(--g360-accent);
+    }
+
+    .export-wrap {
+      position: relative;
+    }
+
+    .export-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      min-width: 220px;
+      background: var(--g360-surface);
+      border: 1px solid var(--g360-border);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      padding: 6px;
+      z-index: 30;
+    }
+
+    .export-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 9px 12px;
+      border: none;
+      background: transparent;
+      color: var(--g360-text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 7px;
+      text-align: left;
+      transition: background 0.15s;
+    }
+
+    .export-option:hover {
+      background: var(--g360-bg);
+    }
+
+    .export-option .count {
+      font-size: 11px;
+      color: var(--g360-muted);
+      font-weight: 500;
+    }
+
+    .export-option.separator {
+      border-top: 1px solid var(--g360-border);
+      margin-top: 4px;
+      padding-top: 9px;
+      border-radius: 0;
+    }
+
+    .export-option.separator:hover {
+      background: var(--g360-bg);
     }
 
     /* === KPI CARDS === */
@@ -461,19 +518,22 @@ export class EstadoPanel extends LitElement {
     return filtered;
   }
 
-  _exportCSV() {
+  _getSinCatalogoCount() {
+    return (this.stockData?.productos || []).filter(p => (p.estado_linea || '').trim() === '').length;
+  }
+
+  _exportCSV(tipo = 'conStock') {
     const rows = [['SKU', 'Nombre', 'Linea', 'Categoria', 'Cajas', 'Unidades', 'Precio', 'Estado']];
-    const productos = (this.stockData?.productos || []).filter(p => {
-      if (this.filter === 'sinStock') return p.bx === 0;
-      if (this.filter === 'bajoStock') return p.bx > 0 && p.bx < 10;
-      if (this.filter === 'conStock') return p.bx >= 10;
-      return true;
-    }).filter(p => {
-      if (!this.query) return true;
-      const q = this.query.toLowerCase();
-      return p.sku.toLowerCase().includes(q) || (p.nombre_corto || '').toLowerCase().includes(q);
-    });
+    const productos = this.stockData?.productos || [];
+    const filtros = {
+      conStock: (p) => p.bx >= 10,
+      bajoStock: (p) => p.bx > 0 && p.bx < 10,
+      sinStock: (p) => p.bx === 0,
+      sinCatalogo: (p) => (p.estado_linea || '').trim() === '',
+    };
+    const filtro = filtros[tipo] || filtros.conStock;
     for (const p of productos) {
+      if (!filtro(p)) continue;
       rows.push([
         p.sku,
         p.nombre_corto || p.nombre || '',
@@ -482,17 +542,19 @@ export class EstadoPanel extends LitElement {
         p.bx || 0,
         p.stock || 0,
         p.precio || 0,
-        p.estado || ''
+        p.estado_linea || p.estado || ''
       ]);
     }
-    const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
+    const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
     a.href = url;
-    a.download = `StockPulse_Estado_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `StockPulse_${labels[tipo]}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    this.exportOpen = false;
   }
 
   _getProgressPercent() {
@@ -511,14 +573,36 @@ export class EstadoPanel extends LitElement {
     return html`
       <div class="header">
         <h1>Estado del Sistema</h1>
-        <button class="export-btn" @click=${this._exportCSV}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Exportar
-        </button>
+        <div class="export-wrap">
+          <button class="export-btn" @click=${() => this.exportOpen = !this.exportOpen}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exportar
+          </button>
+          ${this.exportOpen ? html`
+            <div class="export-menu">
+              <button class="export-option" @click=${() => this._exportCSV('conStock')}>
+                <span>Con Stock</span>
+                <span class="count">${this.stats.conStock}</span>
+              </button>
+              <button class="export-option" @click=${() => this._exportCSV('bajoStock')}>
+                <span>Bajo Stock (&lt;10)</span>
+                <span class="count">${this.stats.bajoStock}</span>
+              </button>
+              <button class="export-option" @click=${() => this._exportCSV('sinStock')}>
+                <span>Sin Stock</span>
+                <span class="count">${this.stats.sinStock}</span>
+              </button>
+              <button class="export-option separator" @click=${() => this._exportCSV('sinCatalogo')}>
+                <span>Sin Catálogo</span>
+                <span class="count">${this._getSinCatalogoCount()}</span>
+              </button>
+            </div>
+          ` : ''}
+        </div>
       </div>
 
       <!-- KPIs -->
