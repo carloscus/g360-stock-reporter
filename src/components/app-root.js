@@ -494,7 +494,7 @@ export class AppRoot extends LitElement {
     const meta = data?.lastUpdated;
     if (meta) {
       this._dataAge = getTimeAgo(meta);
-      this._isStale = isStale();
+      this._isStale = isStale(meta);
     }
   }
 

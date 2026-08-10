@@ -62,7 +62,13 @@ function setMeta(meta) {
 }
 
 // ── isStale: ¿los datos necesitan refresh? ────────────────────────
-export function isStale() {
+export function isStale(timestamp) {
+  // Si se provee timestamp (ej: data.lastUpdated del API), usar ese.
+  // Si no, usar meta.lastFetchedAt (cuando se guardó en localStorage).
+  if (timestamp) {
+    const age = Date.now() - new Date(timestamp).getTime();
+    return age > FRESHNESS_TTL;
+  }
   const meta = getMeta();
   if (!meta || !meta.lastFetchedAt) return true;
   const age = Date.now() - new Date(meta.lastFetchedAt).getTime();
