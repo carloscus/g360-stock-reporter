@@ -79,17 +79,26 @@ function _transformAPIResponse(apiData) {
       nombre: item.descripcion,
       nombre_corto: item.nombre_corto || _generarNombreCorto(item.descripcion),
       linea: _normalizarLinea(item.linea),
+      linea_id: item.linea_id || '',
       categoria: item.categoria,
+      grupo: item.grupo || '',
+      familia: item.familia || '',
+      tipo: item.tipo || '',
       un_bx: unBx,
       precio: item.precio || 0,
+      precio_lista: item.precio_lista || 0,
       peso_kg: item.peso_kg || 0,
       ean13: item.ean13 || '',
+      ean14: item.ean14 || '',
       estado_linea: item.estado_linea || '',
+      orden: item.orden || 0,
+      sin_catalogo: item.sin_catalogo || false,
       stock,
       bx: Math.floor(stock / unBx),
       predespacho: almacenesVenta.reduce((sum, a) => sum + a.predespacho, 0),
       almacenes_venta: almacenesVenta,
       almacenes_count: almacenesVenta.length,
+      keywords: item.keywords || [],
       estado: stock === 0 ? 'AGOTADO' : stock < unBx * 10 ? 'BAJO' : 'OK',
     };
 
@@ -98,7 +107,15 @@ function _transformAPIResponse(apiData) {
   }
 
   return {
-    productos,
+    productos: productos.sort((a, b) => {
+      // Items con orden=0 van al final (sin catalogo maestro)
+      const aOrd = a.orden || 0;
+      const bOrd = b.orden || 0;
+      if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
+      if (aOrd === 0) return 1;
+      if (bOrd === 0) return -1;
+      return aOrd - bOrd;
+    }),
     stockMap,
     lastUpdated: apiData.metadata?.fecha_descarga || new Date().toISOString(),
     totalAlmacenes: apiData.metadata?.total_almacenes || almacenesCount(apiData.items),
