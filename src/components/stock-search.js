@@ -10,7 +10,7 @@ import { LitElement, html, css } from 'lit';
 import { live } from 'lit/directives/live.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import Fuse from 'fuse.js';
-import { calculateBx } from '../core/stock-service.js';
+import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo } from '../core/stock-service.js';
 
 export class StockSearch extends LitElement {
   static properties = {
@@ -491,8 +491,8 @@ export class StockSearch extends LitElement {
     }
     // Catálogo primero (SKUs con estado de línea), después fuera de catálogo
     fuseResults.sort((a, b) => {
-      const aCat = (a.item.estado_linea || '').trim() !== '';
-      const bCat = (b.item.estado_linea || '').trim() !== '';
+      const aCat = esCatalogo(a.item);
+      const bCat = esCatalogo(b.item);
       if (aCat !== bCat) return aCat ? -1 : 1;
       return a.score - b.score;
     });
@@ -613,8 +613,8 @@ export class StockSearch extends LitElement {
         ` : this.results.length > 0 ? this.results.map(({ p, matches }, idx) => {
           const stock = p.stock || 0;
           const bx = calculateBx(stock, p.un_bx);
-          const stockClass = bx === 0 ? 'cero' : bx < 10 ? 'bajo' : 'alto';
-          const sinCatalogo = (p.estado_linea || '').trim() === '';
+          const stockClass = esPorUnidades(p) ? (stock === 0 ? 'cero' : stock < 10 ? 'bajo' : 'alto') : bx === 0 ? 'cero' : bx < 10 ? 'bajo' : 'alto';
+          const sinCatalogo = esSinCatalogo(p);
 
           const nombreKey = p.nombre_corto ? 'nombre_corto' : 'nombre';
           const nombre = this._applyFuseHighlight(p.nombre_corto || p.nombre || '', matches, nombreKey);
@@ -651,7 +651,7 @@ export class StockSearch extends LitElement {
                 <span class="categoria">${unsafeHTML(categoria)}</span>
                 <div class="stock-info">
                   <span class="stock-value ${stockClass}">${stock}</span>
-                  <span class="ean">${bx} bx | pred ${p.predespacho || 0}</span>
+                  <span class="ean">${etiquetaStock(p)} | pred ${p.predespacho || 0}</span>
                 </div>
               </div>
             </div>

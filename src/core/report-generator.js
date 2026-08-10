@@ -10,7 +10,7 @@
 const ExcelJS = window.ExcelJS;
 
 import { INSPECCION_ALMACEN } from './stock-store.js';
-import { sortByOrden } from './stock-service.js';
+import { sortByOrden, esPorUnidades, esCatalogo } from './stock-service.js';
 
 const COLORS = {
   primary: 'FF0E7490',
@@ -342,7 +342,7 @@ const estado = getEstado(bx);
     rowData.stock = p.almacenes_venta
       ? p.almacenes_venta.reduce((sum, a) => sum + a.disponible, 0)
       : stockBase;
-    rowData.bx = bx;
+    rowData.bx = esPorUnidades(p) ? 0 : bx;
     rowData.estado = estado.text;
 
     const row = ws.addRow(rowData);
@@ -385,9 +385,6 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   if (!ExcelJS) {
     throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
   }
-
-  // Un producto pertenece al catálogo maestro cuando tiene estado de línea.
-  const esCatalogo = (p) => (p.estado_linea || '').trim() !== '';
 
   // Los reportes descargados incluyen solo SKUs del catálogo maestro.
   // Los secundarios (sin estado de línea) van a la hoja "Sin Catálogo".

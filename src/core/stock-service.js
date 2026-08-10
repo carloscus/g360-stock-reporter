@@ -143,6 +143,10 @@ function _transformAPIResponse(apiData) {
     const stock = _calcularStockTotal(almacenesVenta);
     // un_bx ya viene del API enriquecido
     const unBx = item.un_bx || 1;
+    const bx = Math.floor(stock / unBx);
+    // Agotado = no se puede formar una caja completa (o sin unidades);
+    // Bajo = 1-9 cajas; OK = 10+. Mismo criterio que getEstado en el Excel.
+    const estado = bx === 0 ? 'AGOTADO' : bx < 10 ? 'BAJO' : 'OK';
 
     const producto = {
       sku: item.sku,
@@ -164,12 +168,12 @@ function _transformAPIResponse(apiData) {
       orden: item.orden || 0,
       sin_catalogo: item.sin_catalogo || false,
       stock,
-      bx: Math.floor(stock / unBx),
+      bx,
       predespacho: almacenesVenta.reduce((sum, a) => sum + a.predespacho, 0),
       almacenes_venta: almacenesVenta,
       almacenes_count: almacenesVenta.length,
       keywords: item.keywords || [],
-      estado: stock === 0 ? 'AGOTADO' : stock < unBx * 10 ? 'BAJO' : 'OK',
+      estado,
     };
 
     productos.push(producto);
@@ -280,6 +284,52 @@ export function calculateBx(stock, unBx = 1) {
   return Math.floor((Number(stock) || 0) / u);
 }
 
+/**
+ * ¿El SKU se vende por unidades (no por cajas)?
+ * un_bx 0/1 (o ausente) = el producto no tiene empaque en cajas,
+ * mostrar stock en unidades para no inflar el volumen de cajas.
+ */
+export function esPorUnidades(producto) {
+  return !(Number(producto?.un_bx) > 1);
+}
+
+/**
+ * ¿El producto pertenece al catálogo maestro? Se identifica por tener
+ * un estado de línea definido en el API enriquecido.
+ */
+export function esCatalogo(producto) {
+  return (producto?.estado_linea || '').trim() !== '';
+}
+
+/**
+ * ¿El producto está fuera del catálogo maestro? (sin estado de línea)
+ */
+export function esSinCatalogo(producto) {
+  return !esCatalogo(producto);
+}
+
+/**
+ * Etiqueta de stock según el modo de venta del SKU:
+ * cajas ("N bx") si vende por caja, unidades ("N u") si vende por unidad.
+ * Las unidades solo se muestran cuando no alcanza una caja completa
+ * (bx 0), para revisión granular (ej: "0 bx · 24 u").
+ */
+export function etiquetaStock(producto, stock = producto?.stock ?? 0) {
+  if (esPorUnidades(producto)) return `${stock} u`;
+  const bx = _getBx(producto);
+  if (bx === 0) return stock > 0 ? `0 bx · ${stock} u` : '0 bx';
+  return `${bx} bx`;
+}
+
+/**
+ * Cajas que aportan al volumen total. Los SKUs por unidades aportan 0
+ * (ya se contabilizan en unidades) para no inflar el total de cajas.
+ */
+export function cajasEfectivas(producto) {
+  if (esPorUnidades(producto)) return 0;
+  return _getBx(producto) || 0;
+}
+
 function _getBx(producto) {
   if (producto.bx !== undefined && producto.bx !== null) return producto.bx;
   return calculateBx(producto.stock ?? 0, producto.un_bx);
@@ -340,7 +390,7 @@ export function calculateKPIs(productos) {
 
     valorInventario += stock * (p.precio || 0);
     pesoTotal += stock * (p.peso_kg || 0);
-    cajasTotal += _getBx(p) || 0;
+    cajasTotal += cajasEfectivas(p);
 
     const estado = (p.estado_linea || 'SIN DEFINIR').trim();
     porEstadoLinea[estado] = (porEstadoLinea[estado] || 0) + 1;
@@ -353,7 +403,7 @@ export function calculateKPIs(productos) {
     porCategoria[cat].unidades += stock;
     porCategoria[cat].valor += stock * (p.precio || 0);
     porCategoria[cat].peso += stock * (p.peso_kg || 0);
-    porCategoria[cat].cajas += _getBx(p) || 0;
+    porCategoria[cat].cajas += cajasEfectivas(p);
 
     if (p.precio && p.precio > 0) conPrecio.push(p);
     else sinPrecio.push(p);

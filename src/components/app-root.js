@@ -9,7 +9,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { subscribe, isStale, getTimeAgo, getMeta } from '../core/stock-store.js';
-import { generateAlerts, loadStockData, probeStockData, isBusinessHours, formatLimaTime } from '../core/stock-service.js';
+import { generateAlerts, loadStockData, probeStockData, isBusinessHours, formatLimaTime, esCatalogo } from '../core/stock-service.js';
 import './stock-header.js';
 import './pulso-form.js';
 import './estado-panel.js';
@@ -452,8 +452,7 @@ export class AppRoot extends LitElement {
     // Suscribirse al store para recibir datos una sola vez
     this._unsubscribe = subscribe((data) => {
       this._stockData = data;
-      const catalogados = (data.productos || [])
-        .filter((p) => (p.estado_linea || '').trim() !== '');
+      const catalogados = (data.productos || []).filter(esCatalogo);
       this.alertCount = catalogados.length > 0
         ? generateAlerts(catalogados).filter(a => a.type === 'critical').length
         : 0;

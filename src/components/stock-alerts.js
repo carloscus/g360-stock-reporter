@@ -7,7 +7,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { generateAlerts } from '../core/stock-service.js';
+import { generateAlerts, etiquetaStock, esCatalogo } from '../core/stock-service.js';
 
 export class StockAlerts extends LitElement {
   static properties = {
@@ -201,8 +201,7 @@ export class StockAlerts extends LitElement {
   willUpdate(changedProperties) {
     if (changedProperties.has('stockData') && this.stockData) {
       // Solo productos del catálogo (con estado de línea definido)
-      const catalogados = (this.stockData.productos || [])
-        .filter((p) => (p.estado_linea || '').trim() !== '');
+      const catalogados = (this.stockData.productos || []).filter(esCatalogo);
       this.alerts = generateAlerts(catalogados);
     }
   }
@@ -275,7 +274,7 @@ export class StockAlerts extends LitElement {
               </div>
               <div class="alert-stock">
                 <span class="stock-value ${alert.type}">${alert.stock}</span>
-                <span class="stock-label">${alert.bx} bx</span>
+                <span class="stock-label">${etiquetaStock(alert)}</span>
               </div>
             </div>
           `)}

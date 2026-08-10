@@ -8,7 +8,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { calculateKPIs, calculateStats, generateAlerts, sortByOrden } from '../core/stock-service.js';
+import { calculateKPIs, calculateStats, sortByOrden, etiquetaStock, esPorUnidades, esSinCatalogo } from '../core/stock-service.js';
 
 export class EstadoPanel extends LitElement {
   static properties = {
@@ -505,7 +505,6 @@ export class EstadoPanel extends LitElement {
     this._expandedSkus = new Set();
     this.stats = { total: 0, conStock: 0, bajoStock: 0, sinStock: 0 };
     this.kpis = null;
-    this.alerts = [];
     this._onDocClick = this._handleDocumentClick.bind(this);
   }
 
@@ -538,7 +537,6 @@ export class EstadoPanel extends LitElement {
       const productos = this.stockData.productos || [];
       this.stats = calculateStats(productos);
       this.kpis = calculateKPIs(productos);
-      this.alerts = generateAlerts(productos, 10);
     }
   }
 
@@ -581,7 +579,7 @@ export class EstadoPanel extends LitElement {
   }
 
   _getSinCatalogoCount() {
-    return (this.stockData?.productos || []).filter(p => (p.estado_linea || '').trim() === '').length;
+    return (this.stockData?.productos || []).filter(esSinCatalogo).length;
   }
 
   _exportCSV(tipo = 'conStock') {
@@ -598,7 +596,7 @@ export class EstadoPanel extends LitElement {
       conStock: (p) => p.bx >= 10,
       bajoStock: (p) => p.bx > 0 && p.bx < 10,
       sinStock: (p) => p.bx === 0,
-      sinCatalogo: (p) => (p.estado_linea || '').trim() === '',
+      sinCatalogo: esSinCatalogo,
     };
     const filtro = filtros[tipo] || filtros.conStock;
     const ordenados = sortByOrden(productos.filter(filtro));
@@ -608,7 +606,7 @@ export class EstadoPanel extends LitElement {
         p.nombre_corto || p.nombre || '',
         p.linea || '',
         p.categoria || '',
-        p.bx || 0,
+        esPorUnidades(p) ? 0 : (p.bx || 0),
         p.stock || 0,
         p.precio || 0,
         p.estado || ''
@@ -761,7 +759,7 @@ export class EstadoPanel extends LitElement {
                       <div class="sku-name">${s.nombre_corto || s.nombre}</div>
                     </div>
                     <div class="sku-right">
-                      <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < 10 ? 'bajo' : ''}">${s.bx >= 1 ? s.bx + ' bx' : s.stock + ' u'}</div>
+                      <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < 10 ? 'bajo' : ''}">${etiquetaStock(s)}</div>
                       <div class="sku-units">${s.stock} u</div>
                     </div>
                   </div>
@@ -777,7 +775,7 @@ export class EstadoPanel extends LitElement {
                       </div>
                       <div class="detail-row">
                         <span class="detail-label">Cajas</span>
-                        <span class="detail-value">${s.bx}</span>
+                        <span class="detail-value">${esPorUnidades(s) ? '— (unidades)' : s.bx}</span>
                       </div>
                       <div class="detail-row">
                         <span class="detail-label">Unidades</span>

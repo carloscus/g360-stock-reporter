@@ -81,9 +81,10 @@ src/
 │   ├── app-root.js        # Raíz: navegación, store subscription
 │   ├── stock-header.js    # Header con tema toggle
 │   ├── pulso-form.js      # Formulario + modal de descarga XLSX
-│   ├── estado-panel.js    # Dashboard KPIs + alertas top 10
+│   ├── estado-panel.js    # Dashboard KPIs + categorías por estado
 │   ├── stock-alerts.js    # Lista filtrada de alertas
-│   └── stock-search.js    # Búsqueda fuzzy con Fuse.js
+│   ├── stock-search.js    # Búsqueda fuzzy con Fuse.js
+│   └── sin-catalogo-panel.js  # Ítems fuera del catálogo maestro
 ├── core/
 │   ├── stock-store.js     # Store centralizado (pub/sub + 3 capas cache)
 │   ├── stock-service.js   # Carga de datos con fallback a localStorage
@@ -110,6 +111,19 @@ public/
 | localStorage | Última carga exitosa | 7 días |
 | sessionStorage | Carga actual | 5 minutos |
 | Memoria | Datos en runtime | Sesión actual |
+
+## Regla de unidades vs cajas
+
+El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
+
+- **un_bx > 1** → se vende por caja: se muestra `N bx` (cajas completas). Las cajas
+  incompletas solo se muestran cuando no alcanza ni una caja (`0 bx · M u`) para
+  revisión granular; no inflan el total de cajas.
+- **un_bx 0 / 1 o ausente** → se vende por unidad: se muestra `N u` (unidades) y el
+  SKU aporta 0 al total de cajas, evitando inflar el volumen.
+- **Estado del SKU**: `AGOTADO` si `bx === 0`, `BAJO` si `1 ≤ bx < 10`, `OK` en otro caso.
+- **Catálogo maestro**: un SKU pertenece al catálogo cuando tiene `estado_linea`
+  definido; los demás van al panel "Sin Catálogo".
 
 ## Scripts
 

@@ -8,6 +8,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
+import { etiquetaStock, esSinCatalogo, esPorUnidades } from '../core/stock-service.js';
 
 export class SinCatalogoPanel extends LitElement {
   static properties = {
@@ -286,7 +287,7 @@ export class SinCatalogoPanel extends LitElement {
     if (changedProperties.has('stockData') && this.stockData) {
       const productos = this.stockData.productos || [];
       this.secundarios = productos
-        .filter((p) => (p.estado_linea || '').trim() === '')
+        .filter(esSinCatalogo)
         .map((p) => ({
           sku: p.sku,
           nombre: p.nombre,
@@ -417,13 +418,13 @@ export class SinCatalogoPanel extends LitElement {
                 <div class="item-name">${s.nombre}</div>
                 <div class="item-tags">
                   ${s.precio > 0 ? html`<span class="tag precio">Precio S/ ${s.precio.toFixed(2)}</span>` : ''}
-                  <span class="tag">${s.un_bx} un/bx</span>
+                  ${esPorUnidades(s) ? '' : html`<span class="tag">${s.un_bx} un/bx</span>`}
                   ${s.stock === 0 ? html`<span class="tag">Agotado</span>` : ''}
                 </div>
               </div>
               <div class="item-right">
                 <span class="stock-value ${s.stock === 0 ? 'sinstock' : ''}">${s.stock.toLocaleString('es-PE')}</span>
-                <span class="stock-label">${s.bx} bx</span>
+                <span class="stock-label">${etiquetaStock(s)}</span>
               </div>
             </div>
           `)}
