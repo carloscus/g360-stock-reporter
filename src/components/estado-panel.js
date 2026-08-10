@@ -579,7 +579,7 @@ export class EstadoPanel extends LitElement {
 
       <!-- Categories -->
       ${categorias.map(cat => {
-        const skus = this._getFilteredSkus(cat.skus || []);
+        const skus = this._getFilteredSkus(cat.nombre);
         const expanded = this._expandedCategories.has(cat.nombre);
         return html`
           <div class="section">
