@@ -382,41 +382,6 @@ export class PulsoForm extends LitElement {
     .modal-download-btn:hover {
       filter: brightness(1.1);
     }
-
-    .modal-share-row {
-      display: flex;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .modal-share-btn {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px;
-      border: 1px solid var(--g360-border);
-      border-radius: 10px;
-      background: var(--g360-bg);
-      color: var(--g360-text);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .modal-share-btn:hover {
-      border-color: var(--g360-accent);
-    }
-
-    .modal-share-btn.whatsapp {
-      color: #25D366;
-    }
-
-    .modal-share-btn.email {
-      color: #EA4335;
-    }
   `;
 
   constructor() {
@@ -592,74 +557,6 @@ const blob = await generateReportXLSX(
       console.error('[pulso-form] Error generando XLSX:', error);
       this._handleCloseModal();
     } finally {
-      this.isGenerating = false;
-    }
-  }
-
-  async _handleShare(type) {
-    this._saveData();
-
-    try {
-      const { generateReportXLSX, downloadBlob, generarNombreArchivo } =
-        await import('../core/report-generator.js');
-
-      const data = this.stockData;
-      const lastUpdated = data.lastUpdated || '';
-      const fecha = new Date().toLocaleString('es-PE', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
-      const text = `📊 StockPulse - ${this.categoria}\n📅 ${fecha}\n👤 ${this.nombre}`;
-      const filename = generarNombreArchivo(this.categoria);
-      const mimeType =
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-      this.isGenerating = true;
-      const blob = await generateReportXLSX(
-        this.categoria, data.productos,
-        {
-          includeInspeccion: this.includeInspeccion,
-          includeSecundarios: this.includeSecundarios,
-          autor: { nombre: this.nombre, email: this.email },
-        },
-        lastUpdated,
-      );
-      this.isGenerating = false;
-
-      const file = new File([blob], filename, { type: mimeType });
-
-      // Web Share API (mobile): envia el archivo COMO ADJUNTO a WhatsApp / Email
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({ files: [file] })
-      ) {
-        try {
-          await navigator.share({
-            title: `StockPulse ${this.categoria}`,
-            text,
-            files: [file],
-            url: window.location.href,
-          });
-          this._handleCloseModal();
-          return;
-        } catch (err) {
-          console.warn('[pulso-form] navigator.share cancelado:', err);
-        }
-      }
-
-      // Fallback: descargar el adjunto y abrir share con texto informativo
-      downloadBlob(blob, filename);
-      const note = `\n\n📎 Archivo StockPulse descargado: ${filename}`;
-      if (type === 'whatsapp') {
-        window.open(`https://wa.me/?text=${encodeURIComponent(text + note)}`, '_blank');
-      } else if (type === 'email') {
-        window.location.href =
-          `mailto:?subject=StockPulse%20${encodeURIComponent(this.categoria)}&body=${encodeURIComponent(text + note)}`;
-      }
-      this._handleCloseModal();
-    } catch (error) {
-      console.error('[pulso-form] Error generando/compartiendo XLSX:', error);
       this.isGenerating = false;
     }
   }
@@ -851,22 +748,6 @@ const blob = await generateReportXLSX(
             <button class="modal-download-btn" @click=${this._handleDownload}>
               DESCARGAR AHORA
             </button>
-
-            <div class="modal-share-row">
-              <button class="modal-share-btn whatsapp" @click=${() => this._handleShare('whatsapp')}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.477 14.382c-.298-.149-1.758-.868-2.031-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.941 1.162-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.149-.149.298-.347.447-.521.15-.174.2-.329.274-.446.074-.118.372-.446.57-.668.199-.221.298-.367.447-.608.149-.24.075-.536-.037-.75-.113-.214-.748-.725-1.195-1.223-.372-.399-.654-.692-1.123-.692h-1.7c-.372 0-.665.249-.756.521-.075.249-.298.521-.595.747-.298.225-1.073.521-1.72.921-.649.399-1.095.896-1.221 1.285-.126.372-.042.647.094.895.135.248.595.84 1.046 1.214.449.373 1.046.772 1.196 1.086.149.313.149.521-.022.817-.074.295-.372.746-.594 1.017-.221.272-.491.496-.694.67l-.67.32-.67.32c-.298.149-.631.274-.9.417l-1.333.667c-.075.037-.149.075-.223.075-.074 0-.149 0-.223-.074-.595-.298-.972-.595-1.38-.795-.408-.199-.747-.372-1.072-.595l-1.247-.622c-.075-.037-.149-.037-.223-.037h-1.333c-.372 0-.668.124-.92.37-.249.249-.447.595-.447.92v1.333c0 .372.124.668.447.92.323.249.744.52 1.196.92l1.247.622c.324.162.66.322 1.07.495l1.38.689c.224.112.449.199.67.274.223.074.42.124.595.174.174.049.322.074.42.074.099 0 .224-.025.372-.074.297-.099.52-.224.743-.372.223-.149.42-.323.594-.521.174-.199.298-.42.372-.668.075-.249.124-.495.124-.768v-1.333c0-.223-.025-.449-.074-.668-.049-.224-.124-.449-.223-.668l-.965-1.943c-.149-.298-.149-.595 0-.892.149-.298.42-.52.768-.743l1.396-.697c.297-.149.52-.224.768-.298.249-.074.495-.124.743-.124.248 0 .495.05.743.124l1.396.697c.347.173.668.42.965.743.298.323.495.668.595 1.017.099.35.149.743.149 1.17 0 .35-.074.695-.223 1.018l-.965 1.943c-.124.249-.298.495-.52.72-.224.224-.495.447-.82.645l-1.072.664c-.149.074-.297.149-.42.224-.124.074-.224.124-.297.174-.074.049-.149.074-.224.074s-.174-.025-.272-.074c-.099-.049-.196-.124-.293-.224l-1.333-1.333z"/>
-                </svg>
-                WhatsApp
-              </button>
-              <button class="modal-share-btn email" @click=${() => this._handleShare('email')}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
-                </svg>
-                Email
-              </button>
-            </div>
           </div>
         </div>
       ` : ''}
