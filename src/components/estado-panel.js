@@ -588,7 +588,7 @@ export class EstadoPanel extends LitElement {
                 <span class="section-name">${cat.nombre}</span>
                 <span class="section-count">${cat.skus} SKUs</span>
               </div>
-              <span class="section-value">S/ ${cat.valor.toLocaleString('es-PE', { maximumFractionDigits: 0 })}</span>
+              <span class="section-value">${cat.valor.toLocaleString('es-PE', { maximumFractionDigits: 0 })}</span>
             </div>
             ${expanded ? html`
               <div class="section-body">
@@ -624,7 +624,7 @@ export class EstadoPanel extends LitElement {
                       </div>
                       <div class="detail-row">
                         <span class="detail-label">Precio</span>
-                        <span class="detail-value">S/ ${s.precio}</span>
+                        <span class="detail-value">${s.precio}</span>
                       </div>
                       <div class="detail-row">
                         <span class="detail-label">Peso</span>
