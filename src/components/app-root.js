@@ -75,6 +75,9 @@ export class AppRoot extends LitElement {
     theme: { type: String },
     alertCount: { type: Number },
     _stockData: { type: Object },
+    _dataAge: { type: String },
+    _isStale: { type: Boolean },
+    _isRefreshing: { type: Boolean },
   };
 
   static styles = css`
@@ -438,7 +441,7 @@ export class AppRoot extends LitElement {
       this.alertCount = catalogados.length > 0
         ? generateAlerts(catalogados).filter(a => a.type === 'critical').length
         : 0;
-      this._updateDataStatus(data);
+      this._updateDataStatus();
     });
 
     // Cargar datos (devuelve cache al instante; refresh se gestiona abajo)
@@ -468,29 +471,18 @@ export class AppRoot extends LitElement {
   }
 
   async _autoRefresh() {
-    if (this._isRefreshing) return;
-    this._isRefreshing = true;
-    try {
-      // La data llega vía subscriber (saveData notifica); esto solo marca estado
-      await loadStockData(true);
-    } catch (error) {
-      console.warn('[app-root] Refresh falló:', error);
-    } finally {
-      this._isRefreshing = false;
-    }
+    await this._manualRefresh();
   }
 
   async _manualRefresh() {
     if (this._isRefreshing) return;
     this._isRefreshing = true;
-    this.requestUpdate();
     try {
       await loadStockData(true);
-    } catch (e) {
-      console.warn('[app-root] Manual refresh failed:', e);
+    } catch (error) {
+      console.warn('[app-root] Refresh manual falló:', error);
     } finally {
       this._isRefreshing = false;
-      this.requestUpdate();
     }
   }
 
@@ -504,14 +496,10 @@ export class AppRoot extends LitElement {
     document.documentElement.setAttribute('data-theme', this.theme);
   }
 
-  _updateDataStatus(data) {
-    const meta = data?.lastUpdated;
-    if (meta) {
-      this._dataAge = getTimeAgo(meta);
-    }
-    // Use lastFetchedAt (when we saved to localStorage) for staleness check
-    const metaRecord = getMeta();
-    this._isStale = isStale(metaRecord?.lastFetchedAt);
+  _updateDataStatus() {
+    const meta = getMeta();
+    this._dataAge = meta && meta.lastFetchedAt ? getTimeAgo(meta.lastFetchedAt) : null;
+    this._isStale = isStale();
   }
 
   _openSearch() {
@@ -594,14 +582,20 @@ export class AppRoot extends LitElement {
             .theme=${this.theme}
           ></stock-header>
 
-          <!-- Status bar: frescura de datos -->
+          <!-- Status bar: frescura de datos + botón "forzar actualización" -->
           ${this._stockData ? html`
             <div class="data-status ${this._isStale ? 'stale' : 'fresh'}">
               <span class="status-dot"></span>
               <span class="status-text">
-                ${this._isStale ? '🔄 Actualizando…' : `Datos actualizados hace ${this._dataAge || '<1min'}`}
+                ${this._isStale ? '🔄 Datos desactualizados — pulsa ↻ para actualizar' : `Datos actualizados hace ${this._dataAge || '<1min'}`}
               </span>
-              ${this._isStale ? html`<button class="refresh-btn ${this._isRefreshing ? 'refreshing' : ''}" title="Actualizar ahora" @click=${() => loadStockData(true)} disabled?=${this._isRefreshing}>${this._isRefreshing ? html`<span class="spinner-mini"></span>` : html`↻`}</button>` : ''}
+              <button
+                class="refresh-btn ${this._isRefreshing ? 'refreshing' : ''}"
+                title="Actualizar ahora"
+                aria-label="Actualizar datos"
+                @click=${this._manualRefresh}
+                ?disabled=${this._isRefreshing}
+              >${this._isRefreshing ? html`<span class="spinner-mini"></span>` : html`↻`}</button>
             </div>
           ` : ''}
 
