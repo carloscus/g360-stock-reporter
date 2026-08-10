@@ -49,6 +49,14 @@ function sortByOrden(items) {
 }
 
 /**
+ * Nombre de hoja para una línea (Excel limita a 31 caracteres).
+ * Debe coincidir con el usado al crear las hojas por línea.
+ */
+function sheetNameForLinea(linea) {
+  return (linea || 'Sin Línea').substring(0, 31);
+}
+
+/**
  * Calcula el stock sin incluir el almacén de inspección (121).
  * @param {Object} producto - Producto enriquecido con almacenes_venta[]
  * @returns {number} stock disponible sin 121
@@ -267,8 +275,12 @@ function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
     const pct = totalUnidades > 0 ? ((data.stock / totalUnidades) * 100).toFixed(1) : '0';
     const color = COLORS.lineColors[idx % COLORS.lineColors.length];
 
-    ws.getCell(`A${lineaRow}`).value = lin;
-    ws.getCell(`A${lineaRow}`).font = { bold: true, size: 10, color: { argb: color } };
+    ws.getCell(`A${lineaRow}`).value = {
+      text: lin,
+      hyperlink: `#${sheetNameForLinea(lin)}!A1`,
+      tooltip: `Ir a la hoja ${lin}`,
+    };
+    ws.getCell(`A${lineaRow}`).font = { bold: true, size: 10, color: { argb: color }, underline: true };
 
     ws.getCell(`B${lineaRow}`).value = data.codigos;
     ws.getCell(`B${lineaRow}`).alignment = { horizontal: 'center' };
@@ -422,7 +434,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   });
 
   Object.entries(lineas).forEach(([linea, items]) => {
-    const sheetName = linea.substring(0, 31);
+    const sheetName = sheetNameForLinea(linea);
     const wsLinea = wb.addWorksheet(sheetName);
     createDataSheet(wsLinea, linea, sortByOrden(items), includeInspeccion);
   });
