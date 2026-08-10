@@ -137,12 +137,16 @@ export async function loadStockData(force = false) {
       const newRevision = apiData.metadata?.fecha_descarga || apiData.metadata?.fecha_actualizacion || '';
       const prevRevision = getMeta()?.revision;
 
-      // Si el backend no regeneró el reporte (misma revision), no notificar para
-      // evitar refrescos innecesarios de la UI (datos idénticos).
-      if (newRevision && prevRevision === newRevision) {
+      // Si el backend no regeneró el reporte (misma revision) Y su cache es válida,
+      // no notificar para evitar refrescos innecesarios de la UI (datos idénticos).
+      const cacheExpirado = apiData.metadata?.cache_expirado === true;
+      if (newRevision && prevRevision === newRevision && !cacheExpirado) {
         console.log('[stock-service] Datos sin cambios, refresco omitido');
         const cached = loadData();
         if (cached) return cached;
+      }
+      if (cacheExpirado && newRevision && prevRevision === newRevision) {
+        console.log('[stock-service] Cache API expirado, forzando refresco a pesar de misma revision');
       }
 
       const data = _transformAPIResponse(apiData);
