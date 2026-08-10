@@ -8,7 +8,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { subscribe, isStale, getTimeAgo } from '../core/stock-store.js';
+import { subscribe, isStale, getTimeAgo, getMeta } from '../core/stock-store.js';
 import { generateAlerts, loadStockData } from '../core/stock-service.js';
 import './stock-header.js';
 import './pulso-form.js';
