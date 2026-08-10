@@ -21,8 +21,6 @@ export class PulsoForm extends LitElement {
     bloqueado: { type: Boolean },
     tiempoBloqueo: { type: Number },
     showModal: { type: Boolean },
-    isMobile: { type: Boolean },
-    isSaved: { type: Boolean },
     includeInspeccion: { type: Boolean },
     includeSecundarios: { type: Boolean },
     stockData: { type: Object },
@@ -397,32 +395,10 @@ export class PulsoForm extends LitElement {
     this.bloqueado = false;
     this.tiempoBloqueo = 0;
     this.showModal = false;
-    this.isMobile = window.innerWidth < 768;
-    this.isSaved = false;
     this.includeInspeccion = false;
     this.includeSecundarios = false;
     this.stockData = null;
     this._bloqueoTimer = null;
-    this._loadSavedData();
-  }
-
-  _loadSavedData() {
-    if (this.isMobile) {
-      const saved = localStorage.getItem('stock_user');
-      if (saved) {
-        const data = JSON.parse(saved);
-        this.nombre = data.nombre || '';
-        this.email = data.email || '';
-        this.isSaved = !!(this.nombre && this.email);
-      }
-    }
-  }
-
-  _saveData() {
-    if (this.isMobile && this.nombre && this.email) {
-      localStorage.setItem('stock_user', JSON.stringify({ nombre: this.nombre, email: this.email }));
-      this.isSaved = true;
-    }
   }
 
   _validateEmail(email) {
@@ -502,12 +478,6 @@ export class PulsoForm extends LitElement {
     this.isGenerating = true;
     this._resetearIntentos();
 
-    this.dispatchEvent(new CustomEvent('generar-reporte', {
-      detail: { categoria: this.categoria, includeInspeccion: this.includeInspeccion, includeSecundarios: this.includeSecundarios },
-      bubbles: true,
-      composed: true,
-    }));
-
     this.showModal = true;
     this.isGenerating = false;
   }
@@ -520,11 +490,6 @@ export class PulsoForm extends LitElement {
     this.includeInspeccion = false;
     this.includeSecundarios = false;
     this._resetearIntentos();
-  }
-
-  _clearCredentials() {
-    try { localStorage.removeItem('stock_user'); } catch { /* noop */ }
-    this.isSaved = false;
   }
 
   async _handleDownload() {
@@ -549,9 +514,6 @@ const blob = await generateReportXLSX(
 
       const filename = generarNombreArchivo(this.categoria);
       downloadBlob(blob, filename);
-
-      // Limpiar credenciales para exigir reingreso en la siguiente descarga
-      this._clearCredentials();
       this._handleCloseModal();
     } catch (error) {
       console.error('[pulso-form] Error generando XLSX:', error);

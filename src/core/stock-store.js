@@ -20,7 +20,6 @@ const KEYS = {
   session: 'g360_stock_data_v1',
   local: 'g360_stock_data_local_v1',
   meta: 'g360_stock_meta_v1',
-  theme: 'g360-theme',
 };
 
 const LOCAL_TTL = 7 * 24 * 60 * 60 * 1000; // 7 días
@@ -185,12 +184,4 @@ export function getCacheStatus() {
     meta: meta || null,
     source: _cachedData?.fuente || 'unknown',
   };
-}
-
-// ── Theme ──────────────────────────────────────────────────────────
-export function getTheme() {
-  return localStorage.getItem(KEYS.theme) || 'dark';
-}
-export function setTheme(theme) {
-  localStorage.setItem(KEYS.theme, theme);
 }

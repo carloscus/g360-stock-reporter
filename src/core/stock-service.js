@@ -43,6 +43,21 @@ export function formatLimaTime(isoString) {
   return `${hh}:${mm}`;
 }
 
+/**
+ * Ordena productos por el campo `orden` del API (catálogo maestro).
+ * Los ítems sin orden (0) van al final; dentro del mismo orden, por SKU.
+ */
+export function sortByOrden(items) {
+  return [...items].sort((a, b) => {
+    const aOrd = a.orden || 0;
+    const bOrd = b.orden || 0;
+    if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
+    if (aOrd === 0) return 1;
+    if (bOrd === 0) return -1;
+    return aOrd - bOrd;
+  });
+}
+
 function _normalizarLinea(lineaApi) {
   if (!lineaApi) return '';
   return lineaApi.replace(/^[\w-]+\s*-\s*/, '').trim();
@@ -162,15 +177,7 @@ function _transformAPIResponse(apiData) {
   }
 
   return {
-    productos: productos.sort((a, b) => {
-      // Items con orden=0 van al final (sin catalogo maestro)
-      const aOrd = a.orden || 0;
-      const bOrd = b.orden || 0;
-      if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
-      if (aOrd === 0) return 1;
-      if (bOrd === 0) return -1;
-      return aOrd - bOrd;
-    }),
+    productos: sortByOrden(productos),
     stockMap,
     lastUpdated: apiData.metadata?.fecha_descarga || new Date().toISOString(),
     totalAlmacenes: apiData.metadata?.total_almacenes || almacenesCount(apiData.items),

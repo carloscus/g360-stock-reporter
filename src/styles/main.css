@@ -90,42 +90,6 @@ app-root {
   min-height: 100vh;
 }
 
-/* === UTILIDADES === */
-.g360-card {
-  background: var(--g360-surface);
-  border: 1px solid var(--g360-border);
-  border-radius: var(--g360-rounded);
-  padding: var(--g360-space-md);
-  box-shadow: var(--g360-shadow);
-}
-
-.g360-glass {
-  background: var(--g360-glass);
-  backdrop-filter: blur(var(--g360-blur));
-  -webkit-backdrop-filter: blur(var(--g360-blur));
-  border: 1px solid var(--g360-border);
-}
-
-.g360-btn {
-  background: var(--g360-accent);
-  color: var(--g360-bg);
-  border: none;
-  border-radius: var(--g360-rounded);
-  padding: var(--g360-space-sm) var(--g360-space-md);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all var(--g360-transition);
-}
-
-.g360-btn:hover {
-  background: var(--g360-accent-dark);
-}
-
-.g360-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* === MODO CLARO === */
 :root[data-theme="light"] {
   --g360-bg: #ffffff;
@@ -148,19 +112,4 @@ app-root {
 @keyframes g360-slide-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes g360-slide-in-left {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes g360-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes g360-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
 }

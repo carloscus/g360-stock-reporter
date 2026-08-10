@@ -10,6 +10,7 @@
 const ExcelJS = window.ExcelJS;
 
 import { INSPECCION_ALMACEN } from './stock-store.js';
+import { sortByOrden } from './stock-service.js';
 
 const COLORS = {
   primary: 'FF0E7490',
@@ -32,21 +33,6 @@ const getEstado = (bx) => {
   if (bx < 10) return { text: '⚠ BAJO', bgColor: COLORS.yellow, fontColor: COLORS.yellowDark };
   return { text: '✓ OK', bgColor: COLORS.green, fontColor: COLORS.greenDark };
 };
-
-/**
- * Ordena productos por el campo `orden` del API (catálogo maestro).
- * Los ítems sin orden (0) van al final; dentro del mismo orden, por SKU.
- */
-function sortByOrden(items) {
-  return [...items].sort((a, b) => {
-    const aOrd = a.orden || 0;
-    const bOrd = b.orden || 0;
-    if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
-    if (aOrd === 0) return 1;
-    if (bOrd === 0) return -1;
-    return aOrd - bOrd;
-  });
-}
 
 /**
  * Nombre de hoja para una línea (Excel limita a 31 caracteres).

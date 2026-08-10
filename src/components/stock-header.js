@@ -174,7 +174,7 @@ export class StockHeader extends LitElement {
 
   constructor() {
     super();
-    this.titulo = 'CIPSA Stock';
+    this.titulo = 'StockPulse';
     this.installable = false;
     this._onInstallable = (e) => { this.installable = e.detail; };
   }

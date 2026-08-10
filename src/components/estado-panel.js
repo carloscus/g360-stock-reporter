@@ -8,7 +8,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { calculateKPIs, calculateStats, generateAlerts } from '../core/stock-service.js';
+import { calculateKPIs, calculateStats, generateAlerts, sortByOrden } from '../core/stock-service.js';
 
 export class EstadoPanel extends LitElement {
   static properties = {
@@ -601,16 +601,7 @@ export class EstadoPanel extends LitElement {
       sinCatalogo: (p) => (p.estado_linea || '').trim() === '',
     };
     const filtro = filtros[tipo] || filtros.conStock;
-    const ordenados = productos
-      .filter(filtro)
-      .sort((a, b) => {
-        const aOrd = a.orden || 0;
-        const bOrd = b.orden || 0;
-        if (aOrd === 0 && bOrd === 0) return a.sku.localeCompare(b.sku);
-        if (aOrd === 0) return 1;
-        if (bOrd === 0) return -1;
-        return aOrd - bOrd;
-      });
+    const ordenados = sortByOrden(productos.filter(filtro));
     for (const p of ordenados) {
       rows.push([
         p.sku,
@@ -620,7 +611,7 @@ export class EstadoPanel extends LitElement {
         p.bx || 0,
         p.stock || 0,
         p.precio || 0,
-        p.estado_linea || p.estado || ''
+        p.estado || ''
       ]);
     }
     const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
