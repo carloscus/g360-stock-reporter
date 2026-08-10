@@ -600,7 +600,7 @@ export class EstadoPanel extends LitElement {
                       <div class="sku-name">${s.nombre_corto || s.nombre}</div>
                     </div>
                     <div class="sku-right">
-                      <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < 10 ? 'bajo' : ''}">${s.bx} bx</div>
+                      <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < 10 ? 'bajo' : ''}">${s.bx >= 1 ? s.bx + ' bx' : s.stock + ' u'}</div>
                       <div class="sku-units">${s.stock} u</div>
                     </div>
                   </div>
