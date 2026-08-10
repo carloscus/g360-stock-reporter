@@ -83,6 +83,43 @@ export class EstadoPanel extends LitElement {
       z-index: 30;
     }
 
+    .export-menu-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px 8px;
+      border-bottom: 1px solid var(--g360-border);
+      margin-bottom: 6px;
+    }
+
+    .export-menu-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--g360-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .export-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border: none;
+      border-radius: 50%;
+      background: rgba(239, 68, 68, 0.12);
+      color: #ef4444;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .export-close:hover {
+      background: #ef4444;
+      color: #fff;
+    }
+
     .export-option {
       display: flex;
       align-items: center;
@@ -609,6 +646,14 @@ export class EstadoPanel extends LitElement {
           </button>
           ${this.exportOpen ? html`
             <div class="export-menu">
+              <div class="export-menu-header">
+                <span class="export-menu-title">Descargar reporte</span>
+                <button class="export-close" @click=${() => this.exportOpen = false} aria-label="Cerrar">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
               <button class="export-option" @click=${() => this._exportCSV('conStock')}>
                 <span>Con Stock</span>
                 <span class="count">${this.stats.conStock}</span>
