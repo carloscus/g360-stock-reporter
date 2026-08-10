@@ -469,6 +469,31 @@ export class EstadoPanel extends LitElement {
     this.stats = { total: 0, conStock: 0, bajoStock: 0, sinStock: 0 };
     this.kpis = null;
     this.alerts = [];
+    this._onDocClick = this._handleDocumentClick.bind(this);
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('click', this._onDocClick);
+    document.addEventListener('keydown', this._onDocClick);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('click', this._onDocClick);
+    document.removeEventListener('keydown', this._onDocClick);
+  }
+
+  _handleDocumentClick(e) {
+    if (!this.exportOpen) return;
+    if (e.type === 'keydown') {
+      if (e.key === 'Escape') this.exportOpen = false;
+      return;
+    }
+    const path = e.composedPath ? e.composedPath() : [];
+    if (!path.includes(this)) {
+      this.exportOpen = false;
+    }
   }
 
   willUpdate(changed) {
