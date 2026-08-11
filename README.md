@@ -131,17 +131,19 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
 npm run dev       # Desarrollo (Vite en puerto 3000)
 npm run build     # Producción (dist/)
 npm run preview   # Preview producción
-npm run deploy    # Deploy a GitHub Pages (gh-pages)
 ```
 
-## Configurar GitHub Pages
+## Deploy (GitHub Actions)
 
-1. Crear branch `gh-pages`:
+El deploy es automático vía GitHub Actions: cada push a `main` dispara el
+workflow `.github/workflows/deploy.yml` (build con Vite + upload a GitHub Pages).
+
 ```bash
-npm run deploy
+git add -A && git commit -m "feat: ..."
+git push
 ```
 
-2. GitHub → Settings → Pages → Source: `gh-pages` branch, Folder: `/ (root)`
+GitHub → Settings → Pages → Source: `GitHub Actions`.
 
 ## Configurar Backend (Render)
 
@@ -154,15 +156,6 @@ El backend (`g360-stock-api`) debe estar desplegado en Render con:
 Variables de entorno:
 ```
 PORT=8000
-```
-
-## Deploy
-
-```bash
-# Frontend
-git add -A && git commit -m "feat: ..."
-git push
-npm run deploy
 ```
 
 ## Tech Stack
