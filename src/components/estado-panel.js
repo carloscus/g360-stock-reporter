@@ -8,7 +8,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { calculateKPIs, calculateStats, sortByOrden, etiquetaStock, esPorUnidades, esSinCatalogo } from '../core/stock-service.js';
+import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esSinCatalogo } from '../core/stock-service.js';
 
 export class EstadoPanel extends LitElement {
   static properties = {
@@ -582,45 +582,21 @@ export class EstadoPanel extends LitElement {
     return (this.stockData?.productos || []).filter(esSinCatalogo).length;
   }
 
-  _exportCSV(tipo = 'conStock') {
+  async _exportXLSX(tipo = 'conStock') {
     const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
-    const rows = [
-      ['Autor', 'g360-stock-reporter'],
-      ['Reporte', `StockPulse_${labels[tipo]}`],
-      ['Generado', new Date().toLocaleString('es-PE')],
-      [],
-      ['SKU', 'Nombre', 'Linea', 'Categoria', 'Cajas', 'Unidades', 'Precio', 'Estado']
-    ];
-    const productos = this.stockData?.productos || [];
-    const filtros = {
-      conStock: (p) => p.bx >= 10,
-      bajoStock: (p) => p.bx > 0 && p.bx < 10,
-      sinStock: (p) => p.bx === 0,
-      sinCatalogo: esSinCatalogo,
-    };
-    const filtro = filtros[tipo] || filtros.conStock;
-    const ordenados = sortByOrden(productos.filter(filtro));
-    for (const p of ordenados) {
-      rows.push([
-        p.sku,
-        p.nombre_corto || p.nombre || '',
-        p.linea || '',
-        p.categoria || '',
-        esPorUnidades(p) ? 0 : (p.bx || 0),
-        p.stock || 0,
-        p.precio || 0,
-        p.estado || ''
-      ]);
+    try {
+      const { generateEstadoXLSX, downloadBlob, generarNombreArchivo } = await import('../core/report-generator.js');
+      const productos = this.stockData?.productos || [];
+      const blob = await generateEstadoXLSX(tipo, productos);
+      const fecha = new Date().toLocaleString('es-PE', {
+        day: '2-digit', month: '2-digit', year: '2-digit',
+      }).replace(/\//g, '-');
+      downloadBlob(blob, `StockPulse_${labels[tipo]}_${fecha}.xlsx`);
+    } catch (error) {
+      console.error('[estado-panel] Error exportando XLSX:', error.message);
+    } finally {
+      this.exportOpen = false;
     }
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `StockPulse_${labels[tipo]}_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    this.exportOpen = false;
   }
 
   _getProgressPercent() {
@@ -658,19 +634,19 @@ export class EstadoPanel extends LitElement {
                   </svg>
                 </button>
               </div>
-              <button class="export-option" @click=${() => this._exportCSV('conStock')}>
+              <button class="export-option" @click=${() => this._exportXLSX('conStock')}>
                 <span>Con Stock</span>
                 <span class="count">${this.stats.conStock}</span>
               </button>
-              <button class="export-option" @click=${() => this._exportCSV('bajoStock')}>
+              <button class="export-option" @click=${() => this._exportXLSX('bajoStock')}>
                 <span>Bajo Stock (&lt;10)</span>
                 <span class="count">${this.stats.bajoStock}</span>
               </button>
-              <button class="export-option" @click=${() => this._exportCSV('sinStock')}>
+              <button class="export-option" @click=${() => this._exportXLSX('sinStock')}>
                 <span>Sin Stock</span>
                 <span class="count">${this.stats.sinStock}</span>
               </button>
-              <button class="export-option separator" @click=${() => this._exportCSV('sinCatalogo')}>
+              <button class="export-option separator" @click=${() => this._exportXLSX('sinCatalogo')}>
                 <span>Sin Catálogo</span>
                 <span class="count">${this._getSinCatalogoCount()}</span>
               </button>

@@ -10,7 +10,7 @@
 const ExcelJS = window.ExcelJS;
 
 import { INSPECCION_ALMACEN } from './stock-store.js';
-import { sortByOrden, esPorUnidades, esCatalogo } from './stock-service.js';
+import { sortByOrden, esPorUnidades, esCatalogo, esSinCatalogo } from './stock-service.js';
 
 const COLORS = {
   primary: 'FF0E7490',
@@ -464,4 +464,80 @@ export function generarNombreArchivo(categoria) {
   }).replace(/\//g, '-').replace(',', '').replace(/:/g, '').replace(' ', '_');
   const catSuffix = categoria === 'TODOS' ? 'TODOS' : categoria;
   return `StockPulse_${catSuffix}_${fecha}.xlsx`;
+}
+
+/**
+ * Genera un XLSX de una sola hoja con el estado filtrado del dashboard
+ * (Con Stock / Bajo Stock / Sin Stock / Sin Catálogo). Mismo filtrado
+ * y columnas que el CSV anterior, pero en formato hoja de cálculo.
+ *
+ * @param {string} tipo  - 'conStock' | 'bajoStock' | 'sinStock' | 'sinCatalogo'
+ * @param {Array} productos - Productos enriquecidos del store
+ * @returns {Promise<Blob>}
+ */
+export async function generateEstadoXLSX(tipo, productos) {
+  if (!ExcelJS) {
+    throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
+  }
+
+  const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
+  const filtros = {
+    conStock: (p) => (p.bx || 0) >= 10,
+    bajoStock: (p) => (p.bx || 0) > 0 && (p.bx || 0) < 10,
+    sinStock: (p) => (p.bx || 0) === 0,
+    sinCatalogo: esSinCatalogo,
+  };
+  const filtro = filtros[tipo] || filtros.conStock;
+  const items = sortByOrden(productos.filter(filtro));
+
+  const wb = new ExcelJS.Workbook();
+  wb.properties.title = `StockPulse ${labels[tipo]}`;
+  wb.properties.created = new Date();
+  wb.creator = 'g360-stock-reporter';
+  wb.lastModifiedBy = 'g360-stock-reporter';
+
+  const ws = wb.addWorksheet(labels[tipo]);
+
+  // Definir columnas primero: ExcelJS crea la fila 1 (header) desde `header`.
+  const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Unidades', 'Precio', 'Estado'];
+  const widths = [14, 40, 20, 18, 10, 10, 12, 12];
+  ws.columns = headers.map((h, i) => ({ header: h, key: `c${i}`, width: widths[i] }));
+
+  const headerRow = ws.getRow(1);
+  headerRow.height = 22;
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: COLORS.white } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = { bottom: { style: 'medium', color: { argb: COLORS.accent } } };
+  });
+
+  for (const p of items) {
+    const row = ws.addRow([
+      p.sku,
+      p.nombre_corto || p.nombre || '',
+      p.linea || '',
+      p.categoria || '',
+      esPorUnidades(p) ? 0 : (p.bx || 0),
+      p.stock || 0,
+      p.precio || 0,
+      p.estado || '',
+    ]);
+    const estado = p.estado || '';
+    const color = estado === 'AGOTADO' ? COLORS.red
+      : estado === 'BAJO' ? COLORS.yellow
+      : COLORS.green;
+    row.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+    row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+    row.getCell(8).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+  }
+
+  ws.autoFilter = { from: ws.getRow(1).getCell(1), to: ws.getRow(1).getCell(8) };
+  // Inmovilizar encabezado
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
 }
