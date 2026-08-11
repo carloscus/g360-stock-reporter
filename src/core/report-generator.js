@@ -499,8 +499,8 @@ export async function generateEstadoXLSX(tipo, productos) {
   const ws = wb.addWorksheet(labels[tipo]);
 
   // Definir columnas primero: ExcelJS crea la fila 1 (header) desde `header`.
-  const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Unidades', 'Precio', 'Estado'];
-  const widths = [14, 40, 20, 18, 10, 10, 12, 12];
+  const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Unidades', 'Estado'];
+  const widths = [14, 40, 20, 18, 10, 10, 12];
   ws.columns = headers.map((h, i) => ({ header: h, key: `c${i}`, width: widths[i] }));
 
   const headerRow = ws.getRow(1);
@@ -520,7 +520,6 @@ export async function generateEstadoXLSX(tipo, productos) {
       p.categoria || '',
       esPorUnidades(p) ? 0 : (p.bx || 0),
       p.stock || 0,
-      p.precio || 0,
       p.estado || '',
     ]);
     const estado = p.estado || '';
@@ -529,10 +528,10 @@ export async function generateEstadoXLSX(tipo, productos) {
       : COLORS.green;
     row.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
     row.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
-    row.getCell(8).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+    row.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
   }
 
-  ws.autoFilter = { from: ws.getRow(1).getCell(1), to: ws.getRow(1).getCell(8) };
+  ws.autoFilter = { from: ws.getRow(1).getCell(1), to: ws.getRow(1).getCell(7) };
   // Inmovilizar encabezado
   ws.views = [{ state: 'frozen', ySplit: 1 }];
 
