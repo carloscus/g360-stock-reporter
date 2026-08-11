@@ -17,6 +17,8 @@ const API_TIMEOUT_MS = 25000;
 // el payload completo (~1.3 MB). Timeout amplio porque el proceso puede estar
 // dormido en Render y tardar 30-60s en despertar y regenerar el reporte.
 const PROBE_TIMEOUT_MS = 60000;
+// Keep-alive: solo tocar /health, respuesta pequeña. Timeout corto.
+const HEALTH_TIMEOUT_MS = 5000;
 
 // Ventana horaria del backend (Lima, UTC-5): Lun-Sáb 07:00 a 22:59.
 // El API solo regenera el reporte dentro de esta ventana (ver _es_momento_valido).
@@ -125,6 +127,26 @@ export async function probeStockData() {
       total_skus: data?.metadata?.total_skus || 0,
       en_ventana: isBusinessHours(),
     };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Keep-alive barato hacia /health (sin key de payload completo).
+ * Despierta el proceso dormido de Render para que el probe/payload posterior
+ * no tenga que esperar 30-90s de cold start. Timeout corto (5s): solo nos
+ * interesa tocar el servidor, no su contenido.
+ */
+export async function pingHealth() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
+  try {
+    const url = `${STOCK_API_URL.replace(/\/api\/v1\/stock/, '/api/v1/health')}`;
+    await fetch(url, { cache: 'no-store', signal: controller.signal });
+    return true;
+  } catch {
+    return false;
   } finally {
     clearTimeout(timer);
   }

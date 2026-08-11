@@ -9,7 +9,7 @@
 
 import { LitElement, html, css } from 'lit';
 import { subscribe, isStale, getTimeAgo, getMeta } from '../core/stock-store.js';
-import { generateAlerts, loadStockData, probeStockData, isBusinessHours, formatLimaTime, esCatalogo } from '../core/stock-service.js';
+import { generateAlerts, loadStockData, probeStockData, pingHealth, isBusinessHours, formatLimaTime, esCatalogo } from '../core/stock-service.js';
 import './stock-header.js';
 import './pulso-form.js';
 import './estado-panel.js';
@@ -69,6 +69,13 @@ const NAV_ITEMS = [
 ];
 
 export class AppRoot extends LitElement {
+  // Reintentos del probe con backoff cuando el servidor está dormido (cold start).
+  // 60s (timeout probe) + 45s/90s de espera cubren el cold start de Render (~30-90s).
+  static PROBE_RETRIES = [
+    { delayMs: 45000 },
+    { delayMs: 90000 },
+  ];
+
   static properties = {
     activeTab: { type: String },
     isSearchOpen: { type: Boolean },
@@ -82,6 +89,9 @@ export class AppRoot extends LitElement {
     _localCopyAge: { type: String },
     _serverDateHMS: { type: String },
     _localCopyHMS: { type: String },
+    _isWaking: { type: Boolean },
+    _isWakingAttempt: { type: Number },
+    _isProbing: { type: Boolean },
   };
 
   static styles = css`
@@ -129,6 +139,12 @@ export class AppRoot extends LitElement {
       animation: status-pulse 2s ease-in-out infinite;
     }
 
+    .data-status.waking {
+      background: rgba(14, 165, 233, 0.08);
+      color: #0ea5e9;
+      animation: status-pulse 1.2s ease-in-out infinite;
+    }
+
     @keyframes status-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.7; }
@@ -148,6 +164,11 @@ export class AppRoot extends LitElement {
     .data-status.stale .status-dot {
       background: #f59e0b;
       animation: dot-blink 1s ease-in-out infinite;
+    }
+
+    .data-status.waking .status-dot {
+      background: #0ea5e9;
+      animation: dot-blink 0.7s ease-in-out infinite;
     }
 
     @keyframes dot-blink {
@@ -445,6 +466,9 @@ export class AppRoot extends LitElement {
     this.alertCount = 0;
     this._stockData = null;
     this._isRefreshing = false;
+    this._isWaking = false;
+    this._isWakingAttempt = 0;
+    this._isProbing = false;
     this._applyTheme();
   }
 
@@ -474,6 +498,19 @@ export class AppRoot extends LitElement {
       this._pollServer();
     }, 10 * 60 * 1000);
 
+    // KEEP-ALIVE dentro de la ventana: ping /health (~1 KB) cada 5 min para
+    // mantener el proceso de Render despierto (cold start ~30-90s), de modo
+    // que el probe de los 10 min y las descargas no paguen el arranque.
+    this._keepAliveTimer = setInterval(() => {
+      if (isBusinessHours() && !this._isWaking) {
+        pingHealth().catch(() => {});
+      }
+    }, 5 * 60 * 1000);
+    // Ping inmediato al arrancar para "pre-calentar" si el proceso está dormido.
+    if (isBusinessHours()) {
+      pingHealth().catch(() => {});
+    }
+
     // Probe inmediato al arrancar (dentro de ventana) + al enfocar la ventana.
     this._onVisible = () => {
       if (document.visibilityState === 'visible') this._pollServer();
@@ -487,6 +524,7 @@ export class AppRoot extends LitElement {
     if (this._unsubscribe) this._unsubscribe();
     if (this._uiTicker) clearInterval(this._uiTicker);
     if (this._probeTimer) clearInterval(this._probeTimer);
+    if (this._keepAliveTimer) clearInterval(this._keepAliveTimer);
     document.removeEventListener('visibilitychange', this._onVisible);
     window.removeEventListener('focus', this._onVisible);
   }
@@ -497,25 +535,61 @@ export class AppRoot extends LitElement {
    *  - Dentro de ventana: wake + compara fecha_descarga contra nuestra revision.
    *    Si el servidor generó un reporte nuevo, descarga el payload completo
    *    (auto-update, sin pedir confirmación).
+   *  - Si el probe falla (Render dormido, cold start >60s), reintenta con backoff
+   *    (45s/90s) mostrando "Servidor despertando…" hasta lograr respuesta.
    */
   async _pollServer() {
-    if (this._isRefreshing) return;
+    if (this._isRefreshing || this._isProbing) return;
     if (!isBusinessHours()) {
       this._updateDataStatus();
       return;
     }
+    this._isProbing = true;
     try {
-      const probe = await probeStockData();
-      const prev = getMeta()?.revision || '';
-      if (probe?.fecha_descarga && probe.fecha_descarga !== prev) {
-        console.log('[app-root] Reporte nuevo detectado, descargando…');
-        await this._manualRefresh();
+      const probe = await this._probeWithRetries();
+      if (probe) {
+        const prev = getMeta()?.revision || '';
+        if (probe.fecha_descarga && probe.fecha_descarga !== prev) {
+          console.log('[app-root] Reporte nuevo detectado, descargando…');
+          await this._manualRefresh();
+        }
       }
       this._updateDataStatus();
     } catch (error) {
       console.warn('[app-root] Probe falló:', error);
       this._updateDataStatus();
+    } finally {
+      this._isProbing = false;
     }
+  }
+
+  /**
+   * Probe con reintentos y backoff. Marca _isWaking=true mientras el servidor
+   * no responda (dormido/cold start) y lo limpia al lograr respuesta o rendirse.
+   * Devuelve el resultado del probe, o null si nunca respondió.
+   */
+  async _probeWithRetries() {
+    let lastError = null;
+    for (let i = 0; i <= AppRoot.PROBE_RETRIES.length; i++) {
+      try {
+        const probe = await probeStockData();
+        if (i > 0 || this._isWaking) {
+          this._isWaking = false;
+        }
+        return probe;
+      } catch (error) {
+        lastError = error;
+        const retry = AppRoot.PROBE_RETRIES[i];
+        if (!retry) break;
+        this._isWaking = true;
+        this._isWakingAttempt = i + 1;
+        console.log(`[app-root] Probe falló (intento ${i + 1}), reintentando en ${retry.delayMs / 1000}s…`);
+        await new Promise((resolve) => setTimeout(resolve, retry.delayMs));
+      }
+    }
+    this._isWaking = false;
+    this._isWakingAttempt = 0;
+    throw lastError;
   }
 
   async _manualRefresh() {
@@ -638,14 +712,16 @@ export class AppRoot extends LitElement {
           <!-- Status bar: frescura del reporte del servidor + copia local + botón fuerza-refresh -->
           ${this._stockData ? html`
             <div
-              class="data-status ${this._isStale ? 'stale' : 'fresh'}"
-              title="${this._serverDate ? `Reporte del servidor: ${this._serverDateHMS}` : 'Sin reporte'}"
+              class="data-status ${this._isWaking ? 'waking' : this._isStale ? 'stale' : 'fresh'}"
+              title="${this._isWaking ? 'Servidor despertando (Render en frío)…' : (this._serverDate ? `Reporte del servidor: ${this._serverDateHMS}` : 'Sin reporte')}"
             >
               <span class="status-dot"></span>
               <span class="status-text">
-                ${this._isStale
-                  ? `🔄 Reporte del servidor: hace ${this._dataAge || '>15 min'} — actualizando…`
-                  : `Reporte del sistema: hace ${this._dataAge || '<1min'}`}
+                ${this._isWaking
+                  ? `⏳ Servidor despertando${this._isWakingAttempt ? ` (intento ${this._isWakingAttempt})` : ''}… reintentando`
+                  : this._isStale
+                    ? `🔄 Reporte del servidor: hace ${this._dataAge || '>15 min'} — actualizando…`
+                    : `Reporte del sistema: hace ${this._dataAge || '<1min'}`}
                 ${this._localCopyAge ? html`
                   <span class="status-sub" title="Cuándo tu copia se descargó (localStorage)">
                     Tu copia local: ${this._localCopyAge} · ${this._localCopyHMS}

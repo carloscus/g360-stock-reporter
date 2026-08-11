@@ -60,11 +60,16 @@
 └─────────────────────────────────────────────────────────────────┘
 
   ┌─────────────────────────────────────────────────────────────┐
-  │  FRESCHNESS CHECK (15 min)                                  │
-  │  · setInterval cada 60s verifica isStale()                 │
-  │  · Si datos >15 min → refreshInBackground() (silencioso)   │
-  │  · Si API falla → usa localStorage + retry en background   │
-  │  · Badge en UI: 🟢 "hace X min" / 🟡 "🔄 Actualizando…"    │
+  │  FRESCHNESS CHECK + WAKE (ventana Lun-Sáb 07:00-22:59 Lima) │
+  │  · Probe ligero (limit=1, ~1 KB) cada 10 min vs fecha API   │
+  │  · Si el servidor cambió fecha_descarga → descarga completa │
+  │  · Keep-alive /health (~1 KB) cada 5 min: mantiene Render   │
+  │    despierto y evita pagar cold start (30-90s) en descargas │
+  │  · Si el probe falla (servidor dormido) → reintenta con     │
+  │    backoff (45s/90s) mostrando "Servidor despertando…"      │
+  │  · Fuera de la ventana (domingo/madrugada) no se hace red   │
+  │  · Badge en UI: 🟢 "hace X min" / 🟡 "Actualizando…"        │
+  │                 / 🔵 "Servidor despertando…"                 │
   └─────────────────────────────────────────────────────────────┘
 ```
 
