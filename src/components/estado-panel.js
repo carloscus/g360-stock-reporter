@@ -736,7 +736,7 @@ export class EstadoPanel extends LitElement {
                     </div>
                     <div class="sku-right">
                       <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < 10 ? 'bajo' : ''}">${etiquetaStock(s)}</div>
-                      <div class="sku-units">${s.stock} u</div>
+                      <div class="sku-units">Disponible venta: ${s.stock} u</div>
                     </div>
                   </div>
                   ${this._expandedSkus.has(s.sku) ? html`
@@ -754,7 +754,7 @@ export class EstadoPanel extends LitElement {
                         <span class="detail-value">${esPorUnidades(s) ? '— (unidades)' : s.bx}</span>
                       </div>
                       <div class="detail-row">
-                        <span class="detail-label">Unidades</span>
+                        <span class="detail-label">Disponible venta</span>
                         <span class="detail-value">${s.stock}</span>
                       </div>
 

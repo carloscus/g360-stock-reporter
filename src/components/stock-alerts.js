@@ -274,7 +274,7 @@ export class StockAlerts extends LitElement {
               </div>
               <div class="alert-stock">
                 <span class="stock-value ${alert.type}">${alert.stock}</span>
-                <span class="stock-label">${etiquetaStock(alert)}</span>
+                <span class="stock-label">Disponible venta · ${etiquetaStock(alert)}</span>
               </div>
             </div>
           `)}

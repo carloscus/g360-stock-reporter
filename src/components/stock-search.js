@@ -242,6 +242,12 @@ export class StockSearch extends LitElement {
       color: #f59e0b;
     }
 
+    .almacen-chip.sin-venta {
+      background: rgba(148, 163, 184, 0.1);
+      border-color: var(--g360-border);
+      color: var(--g360-muted);
+    }
+
     .sin-cat-badge {
       display: inline-flex;
       align-items: center;
@@ -622,15 +628,13 @@ export class StockSearch extends LitElement {
           const linea = this._applyFuseHighlight(p.linea || '', matches, 'linea');
           const categoria = this._applyFuseHighlight(p.categoria || '', matches, 'categoria');
 
-          const almacenesVenta = (p.almacenes_venta || []).length > 0
-            ? p.almacenes_venta
-            : [{ almacen: 'VES', disponible: stock, esInspeccion: false }];
+           const almacenesVenta = p.almacenes_venta || [];
 
-          const almacenesChips = almacenesVenta.map(a => html`
-            <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : ''}">
-              ${a.almacen}: ${a.disponible}
-            </span>
-          `);
+           const almacenesChips = almacenesVenta.map(a => html`
+             <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : ''}">
+               ${a.almacen}: ${a.disponible}
+             </span>
+           `);
 
           return html`
             <div
@@ -644,14 +648,18 @@ export class StockSearch extends LitElement {
                 <span class="sku">${unsafeHTML(sku)}</span>
                 <span class="nombre">${unsafeHTML(nombre)}</span>
                 <span class="linea">${unsafeHTML(linea)}</span>
-                <div class="almacenes-row">${almacenesChips}</div>
+                 <div class="almacenes-row">
+                   ${almacenesChips.length > 0
+                     ? almacenesChips
+                     : html`<span class="almacen-chip sin-venta">Sin almacenes de venta</span>`}
+                 </div>
                 ${sinCatalogo ? html`<span class="sin-cat-badge">Sin catálogo</span>` : ''}
               </div>
               <div class="result-right">
                 <span class="categoria">${unsafeHTML(categoria)}</span>
                 <div class="stock-info">
                   <span class="stock-value ${stockClass}">${stock}</span>
-                  <span class="ean">${etiquetaStock(p)} | pred ${p.predespacho || 0}</span>
+                   <span class="ean">Disponible venta: ${stock} · ${etiquetaStock(p)} | Comprometido: ${p.predespacho || 0}</span>
                 </div>
               </div>
             </div>

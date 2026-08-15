@@ -129,6 +129,8 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
 - **un_bx 0 / 1 o ausente** → se vende por unidad: se muestra `N u` (unidades) y el
   SKU aporta 0 al total de cajas, evitando inflar el volumen.
 - **Estado del SKU**: `AGOTADO` si `bx === 0`, `BAJO` si `1 ≤ bx < 10`, `OK` en otro caso.
+- **Disponible para venta**: el dashboard suma únicamente `disponible` de almacenes con tipo `venta`.
+  `predespacho` se muestra como comprometido y `stock` representa el total físico (`disponible + predespacho`).
 - **Catálogo maestro**: un SKU pertenece al catálogo cuando tiene `estado_linea`
   definido; los demás van al panel "Sin Catálogo".
 

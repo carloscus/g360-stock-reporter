@@ -499,8 +499,8 @@ export async function generateEstadoXLSX(tipo, productos) {
   const ws = wb.addWorksheet(labels[tipo]);
 
   // Definir columnas primero: ExcelJS crea la fila 1 (header) desde `header`.
-  const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Unidades', 'Estado'];
-  const widths = [14, 40, 20, 18, 10, 10, 12];
+  const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Disponible venta', 'Estado'];
+  const widths = [14, 40, 20, 18, 10, 16, 12];
   ws.columns = headers.map((h, i) => ({ header: h, key: `c${i}`, width: widths[i] }));
 
   const headerRow = ws.getRow(1);
