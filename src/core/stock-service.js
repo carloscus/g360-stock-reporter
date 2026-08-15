@@ -11,7 +11,10 @@
 import { saveData, loadData, isStale, getMeta } from './stock-store.js';
 import { INSPECCION_ALMACEN } from './stock-store.js';
 
-const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026';
+const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock';
+// Clave de lectura limitada para la PWA estatica. Nunca usar aqui la clave
+// administrativa de upload/catalogo. Rotarla desde Render cuando corresponda.
+const STOCK_READ_API_KEY = 'cipsa2026';
 const API_TIMEOUT_MS = 25000;
 // Probe: solo metadata (limit=1, ~1 KB) para detectar regeneración sin descargar
 // el payload completo (~1.3 MB). Timeout amplio porque el proceso puede estar
@@ -96,7 +99,11 @@ export async function fetchFromAPI() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   try {
-    const response = await fetch(STOCK_API_URL, { cache: 'no-store', signal: controller.signal });
+    const response = await fetch(STOCK_API_URL, {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { 'X-API-Key': STOCK_READ_API_KEY },
+    });
     if (!response.ok) throw new Error(`API HTTP ${response.status}`);
     return response.json();
   } finally {
@@ -116,8 +123,12 @@ export async function probeStockData() {
   try {
     // Sin parametro offset/hay que incluir limit=1 para no traer items.
     // El backend calcula cache_expirado y despierta/regenera igual aqui.
-    const url = `${STOCK_API_URL}&limit=1`;
-    const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    const url = `${STOCK_API_URL}?limit=1`;
+    const response = await fetch(url, {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { 'X-API-Key': STOCK_READ_API_KEY },
+    });
     if (!response.ok) throw new Error(`Probe HTTP ${response.status}`);
     const data = await response.json();
     return {
@@ -142,8 +153,12 @@ export async function pingHealth() {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS);
   try {
-    const url = `${STOCK_API_URL.replace(/\/api\/v1\/stock/, '/api/v1/health')}`;
-    await fetch(url, { cache: 'no-store', signal: controller.signal });
+    const url = STOCK_API_URL.replace(/\/api\/v1\/stock$/, '/api/v1/health');
+    await fetch(url, {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { 'X-API-Key': STOCK_READ_API_KEY },
+    });
     return true;
   } catch {
     return false;

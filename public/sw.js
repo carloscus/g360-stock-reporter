@@ -9,6 +9,7 @@
 
 const CACHE_NAME = 'stockpulse-v4';
 const DATA_CACHE = 'stockpulse-data-v4';
+const STOCK_READ_API_KEY = 'cipsa2026';
 
 const STATIC_ASSETS = [
   '/g360-stock-reporter/',
@@ -128,7 +129,9 @@ self.addEventListener('message', (event) => {
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-stock') {
     event.waitUntil(
-      fetch('https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa2026')
+      fetch('https://g360-stock-api.onrender.com/api/v1/stock', {
+        headers: { 'X-API-Key': STOCK_READ_API_KEY },
+      })
         .then((res) => res.json())
         .then((data) => {
           const cache = caches.open(DATA_CACHE);

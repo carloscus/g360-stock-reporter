@@ -23,7 +23,7 @@
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  BACKEND → Render (API)                                         │
-│  https://g360-stock-api.onrender.com/api/v1/stock?key=cipsa...  │
+│  https://g360-stock-api.onrender.com/api/v1/stock               │
 │  · Consulta appweb.cipsa.com.pe:8054 en tiempo real             │
 │  · Responde formato enriquecido con 8 almacenes                 │
 │  · CORS habilitado                                              │
@@ -37,6 +37,8 @@
 │  CAPA 1: API en vivo (onrender)                                 │
 │  → Datos frescos, 7 almacenes, predespacho, inspección (121)    │
 │  → Tiempo: ~2-3s, requiere internet                             │
+│  → Lectura protegida con clave de alcance reducido              │
+│    (operaciones administrativas permanecen separadas)            │
 │  → Se actualiza cada ~15 min desde appweb.cipsa.com.pe          │
 │  → Reporte: 13 columnas completo                                │
 └──────────────────────┬──────────────────────────────────────────┘
@@ -154,7 +156,7 @@ GitHub → Settings → Pages → Source: `GitHub Actions`.
 
 El backend (`g360-stock-api`) debe estar desplegado en Render con:
 - **CORS** habilitado
-- **Endpoint**: `GET /api/v1/stock?key=cipsa2026&enrich=true`
+- **Endpoint**: `GET /api/v1/stock` con header `X-API-Key` de lectura
 - **Fuente de datos**: appweb.cipsa.com.pe:8054
 - **Catálogo maestro**: auto-cargado desde `carloscus/g360-master-data` al arrancar (o vía `POST /api/v1/catalog/upload`)
 
