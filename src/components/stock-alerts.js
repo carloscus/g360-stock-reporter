@@ -137,9 +137,9 @@ export class StockAlerts extends LitElement {
       font-size: var(--g360-size-base);
       font-weight: var(--g360-weight-medium);
       color: var(--g360-text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .alert-stock {

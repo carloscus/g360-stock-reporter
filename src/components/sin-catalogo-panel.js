@@ -191,9 +191,9 @@ export class SinCatalogoPanel extends LitElement {
       font-size: 14px;
       font-weight: 500;
       color: var(--g360-text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .item-tags {
@@ -266,11 +266,8 @@ export class SinCatalogoPanel extends LitElement {
       }
       .item-name {
         white-space: normal;
-        overflow: hidden;
-        text-overflow: clip;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
     }
   `;

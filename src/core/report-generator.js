@@ -515,7 +515,7 @@ export async function generateEstadoXLSX(tipo, productos) {
   for (const p of items) {
     const row = ws.addRow([
       p.sku,
-      p.nombre_corto || p.nombre || '',
+      p.nombre || '',
       p.linea || '',
       p.categoria || '',
       esPorUnidades(p) ? 0 : (p.bx || 0),

@@ -380,10 +380,10 @@ export function generateAlerts(productos, limit = null) {
   for (const p of productos) {
     const bx = _getBx(p);
     if (bx === 0) {
-      alerts.push({ sku: p.sku, nombre: p.nombre_corto || p.nombre, linea: p.linea,
+      alerts.push({ sku: p.sku, nombre: p.nombre, linea: p.linea,
         categoria: p.categoria, stock: p.stock ?? 0, bx, un_bx: p.un_bx || 1, type: 'critical' });
     } else if (bx < 10) {
-      alerts.push({ sku: p.sku, nombre: p.nombre_corto || p.nombre, linea: p.linea,
+      alerts.push({ sku: p.sku, nombre: p.nombre, linea: p.linea,
         categoria: p.categoria, stock: p.stock ?? 0, bx, un_bx: p.un_bx || 1, type: 'warning' });
     }
   }

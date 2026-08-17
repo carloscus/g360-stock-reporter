@@ -151,9 +151,9 @@ export class StockSearch extends LitElement {
       font-weight: var(--g360-weight-semibold);
       color: var(--g360-text);
       margin-bottom: 4px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .linea {
@@ -347,11 +347,8 @@ export class StockSearch extends LitElement {
     @media (max-width: 600px) {
       .nombre {
         white-space: normal;
-        overflow: hidden;
-        text-overflow: clip;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
     }
   `;
@@ -403,11 +400,56 @@ export class StockSearch extends LitElement {
         for (let i = 0; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
         }
-        this.searchTerm = transcript.replace(/\s/g, '').toUpperCase();
+        this.searchTerm = this._normalizarVoz(transcript);
         if (this.searchTerm.length >= 2) this._search();
       };
       this._recognition.onend = () => { this.isListening = false; };
     }
+  }
+
+  /**
+   * Normaliza el transcript de voz para búsqueda:
+   *  - Quita tildes y puntuación.
+   *  - Convierte números hablados (cero, uno, dos...) a dígitos.
+   *  - Descarta ruido ("sku", "codigo", "busca", artículos).
+   *  - Si el resultado es un código (solo dígitos, ej. SKU/EAN) lo une sin
+   *    espacios: "cero uno uno cero uno nueve" → "011019".
+   *  - Si es un nombre, conserva espacios para el matching fuzzy de Fuse.
+   */
+  _normalizarVoz(texto) {
+    if (!texto) return '';
+    const numeros = {
+      cero: '0', uno: '1', dos: '2', tres: '3', cuatro: '4', cinco: '5',
+      seis: '6', siete: '7', ocho: '8', nueve: '9',
+      diez: '10', once: '11', doce: '12', trece: '13', catorce: '14',
+      quince: '15', dieciseis: '16', diecisiete: '17', dieciocho: '18', diecinueve: '19',
+      veinte: '20', veintiuno: '21', veintidos: '22', veintitres: '23', veinticuatro: '24',
+      veinticinco: '25', veintiseis: '26', veintisiete: '27', veintiocho: '28', veintinueve: '29',
+      treinta: '30', cuarenta: '40', cincuenta: '50', sesenta: '60',
+      setenta: '70', ochenta: '80', noventa: '90', cien: '100', ciento: '100',
+    };
+    const ruido = new Set([
+      'sku', 'codigo', 'producto', 'articulo', 'busca', 'buscar', 'muestrame',
+      'por', 'favor', 'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'y', 'a', 'al', 'en',
+    ]);
+    const palabras = texto
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean);
+
+    const tokens = [];
+    for (const p of palabras) {
+      if (ruido.has(p)) continue;
+      tokens.push(numeros[p] ?? p);
+    }
+
+    if (tokens.length > 0 && tokens.every((t) => /^\d+$/.test(t))) {
+      return tokens.join('');
+    }
+    return tokens.join(' ');
   }
 
   _stopVoiceSearch() {
@@ -424,6 +466,7 @@ export class StockSearch extends LitElement {
         { name: 'sku', weight: 2 },
         { name: 'nombre_corto', weight: 1.5 },
         { name: 'nombre', weight: 1 },
+        { name: 'keywords', weight: 0.6 },
         { name: 'ean13', weight: 0.8 },
         { name: 'linea', weight: 0.5 },
         { name: 'categoria', weight: 0.5 },
@@ -622,8 +665,7 @@ export class StockSearch extends LitElement {
           const stockClass = esPorUnidades(p) ? (stock === 0 ? 'cero' : stock < 10 ? 'bajo' : 'alto') : bx === 0 ? 'cero' : bx < 10 ? 'bajo' : 'alto';
           const sinCatalogo = esSinCatalogo(p);
 
-          const nombreKey = p.nombre_corto ? 'nombre_corto' : 'nombre';
-          const nombre = this._applyFuseHighlight(p.nombre_corto || p.nombre || '', matches, nombreKey);
+          const nombre = this._applyFuseHighlight(p.nombre || '', matches, 'nombre');
           const sku = this._applyFuseHighlight(p.sku || '', matches, 'sku');
           const linea = this._applyFuseHighlight(p.linea || '', matches, 'linea');
           const categoria = this._applyFuseHighlight(p.categoria || '', matches, 'categoria');

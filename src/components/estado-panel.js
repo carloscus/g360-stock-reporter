@@ -411,9 +411,9 @@ export class EstadoPanel extends LitElement {
     .sku-name {
       font-size: 12px;
       color: var(--g360-muted);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .sku-right {
@@ -732,7 +732,7 @@ export class EstadoPanel extends LitElement {
                   <div class="sku-item" @click=${() => this._toggleSku(s.sku)}>
                     <div class="sku-left">
                       <div class="sku-code">${s.sku}</div>
-                      <div class="sku-name">${s.nombre_corto || s.nombre}</div>
+                      <div class="sku-name">${s.nombre}</div>
                     </div>
                     <div class="sku-right">
                       <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < 10 ? 'bajo' : ''}">${etiquetaStock(s)}</div>
