@@ -111,8 +111,8 @@ export class StockSearch extends LitElement {
 
     .result-item {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 8px;
       padding: 14px;
       border-radius: 12px;
       cursor: pointer;
@@ -166,11 +166,11 @@ export class StockSearch extends LitElement {
 
     .result-right {
       display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 6px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
       flex-shrink: 0;
-      margin-left: 12px;
+      width: 100%;
     }
 
     .categoria {
@@ -178,6 +178,8 @@ export class StockSearch extends LitElement {
       font-size: var(--g360-size-xs);
       color: var(--g360-muted);
       text-transform: uppercase;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .stock-info {
@@ -185,6 +187,8 @@ export class StockSearch extends LitElement {
       flex-direction: column;
       align-items: flex-end;
       gap: 2px;
+      flex-shrink: 0;
+      margin-left: 12px;
     }
 
     .stock-value {
@@ -213,6 +217,10 @@ export class StockSearch extends LitElement {
       font-size: 9px;
       color: var(--g360-muted);
       font-family: monospace;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      text-align: right;
     }
 
     .almacenes-row {
@@ -345,10 +353,17 @@ export class StockSearch extends LitElement {
     }
 
     @media (max-width: 600px) {
-      .nombre {
-        white-space: normal;
-        overflow-wrap: anywhere;
-        word-break: break-word;
+      .result-right {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .stock-info {
+        align-items: flex-start;
+        margin-left: 0;
+        width: 100%;
+      }
+      .ean {
+        text-align: left;
       }
     }
   `;
