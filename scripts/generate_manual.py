@@ -48,14 +48,14 @@ def slide_title(prs, title, subtitle=""):
     bar.fill.solid()
     bar.fill.fore_color.rgb = C['primary']
     bar.line.fill.background()
-    tb = add_box(prs, 0.7, 0.45, 1.5, 0.5)
+    tb = add_box(slide, 0.7, 0.45, 1.5, 0.5)
     txt(tb.text_frame.paragraphs[0], "G360", 20, True, C['primary'])
-    tb = add_box(prs, 0.5, 2.5, 12.333, 1.2)
+    tb = add_box(slide, 0.5, 2.5, 12.333, 1.2)
     txt(tb.text_frame.paragraphs[0], title, 48, True, C['text'])
     if subtitle:
-        tb = add_box(prs, 0.5, 3.9, 12.333, 0.8)
+        tb = add_box(slide, 0.5, 3.9, 12.333, 0.8)
         txt(tb.text_frame.paragraphs[0], subtitle, 22, False, C['muted'])
-    fb = add_box(prs, 0.5, 6.9, 12.333, 0.4)
+    fb = add_box(slide, 0.5, 6.9, 12.333, 0.4)
     txt(fb.text_frame.paragraphs[0], "CIPSA · Intelligence Division", 12, False, C['muted'], PP_ALIGN.RIGHT)
     return slide
 
@@ -66,20 +66,20 @@ def section_slide(prs, title):
     line.fill.solid()
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
-    tb = add_box(prs, 0.5, 2.6, 12.333, 1)
+    tb = add_box(slide, 0.5, 2.6, 12.333, 1)
     txt(tb.text_frame.paragraphs[0], title, 40, True, C['text'])
     return slide
 
 def content_slide(prs, title, items):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
-    tb = add_box(prs, 0.5, 0.3, 12.333, 0.6)
+    tb = add_box(slide, 0.5, 0.3, 12.333, 0.6)
     txt(tb.text_frame.paragraphs[0], title, 28, True, C['text'])
     line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.9), Inches(1.5), Inches(0.03))
     line.fill.solid()
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
-    cb = add_box(prs, 0.5, 1.2, 12.333, 5.8)
+    cb = add_box(slide, 0.5, 1.2, 12.333, 5.8)
     tf = cb.text_frame
     tf.word_wrap = True
     for i, item in enumerate(items):
@@ -101,7 +101,7 @@ def content_slide(prs, title, items):
 def image_slide(prs, title, caption=""):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
-    tb = add_box(prs, 0.5, 0.3, 12.333, 0.6)
+    tb = add_box(slide, 0.5, 0.3, 12.333, 0.6)
     txt(tb.text_frame.paragraphs[0], title, 28, True, C['text'])
     line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.9), Inches(1.5), Inches(0.03))
     line.fill.solid()
@@ -243,13 +243,13 @@ def main():
     line.fill.solid()
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
-    tb = add_box(prs, 0.5, 2.0, 12.333, 1.0)
+    tb = add_box(slide, 0.5, 2.0, 12.333, 1.0)
     txt(tb.text_frame.paragraphs[0], "StockPulse CIPSA", 44, True, C['text'], PP_ALIGN.CENTER)
-    sb = add_box(prs, 0.5, 3.3, 12.333, 0.6)
+    sb = add_box(slide, 0.5, 3.3, 12.333, 0.6)
     txt(sb.text_frame.paragraphs[0], "Inteligencia de Stock en Tiempo Real", 20, False, C['muted'], PP_ALIGN.CENTER)
-    cb = add_box(prs, 0.5, 5.0, 12.333, 0.5)
+    cb = add_box(slide, 0.5, 5.0, 12.333, 0.5)
     txt(cb.text_frame.paragraphs[0], "¿Consultas? Contactar al equipo G360", 14, False, C['primary'], PP_ALIGN.CENTER)
-    fb = add_box(prs, 0.5, 6.8, 12.333, 0.4)
+    fb = add_box(slide, 0.5, 6.8, 12.333, 0.4)
     txt(fb.text_frame.paragraphs[0], "g360-stock-reporter-lit · GitHub", 10, False, C['muted'], PP_ALIGN.RIGHT)
     
     output_path = os.path.join(os.path.dirname(__file__), "StockPulse_Manual_Tecnico.pptx")
