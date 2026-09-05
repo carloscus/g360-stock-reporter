@@ -1,6 +1,6 @@
 """
-StockPulse CIPSA - Manual Técnico v2
-Generación de presentación PPTX con fuentes explícitas y diseño consistente
+StockPulse CIPSA - Manual Técnico v3
+Con correcciones de layout para evitar desbordamientos
 """
 
 from pptx import Presentation
@@ -11,14 +11,16 @@ from pptx.enum.shapes import MSO_SHAPE
 import os
 
 # Colores corporativos G360/CIPSA
-COLOR_PRIMARY = RGBColor(0x00, 0xD0, 0x84)    # Verde accent
-COLOR_DARK = RGBColor(0x0F, 0x17, 0x2A)        # Fondo oscuro
-COLOR_TEXT = RGBColor(0xF0, 0xF4, 0xF8)        # Texto claro
-COLOR_MUTED = RGBColor(0x94, 0xA3, 0xB8)       # Texto secundario
-COLOR_ACCENT = RGBColor(0x0E, 0x74, 0x90)      # Azul secundario
+COLOR_PRIMARY = RGBColor(0x00, 0xD0, 0x84)
+COLOR_DARK = RGBColor(0x0F, 0x17, 0x2A)
+COLOR_TEXT = RGBColor(0xF0, 0xF4, 0xF8)
+COLOR_MUTED = RGBColor(0x94, 0xA3, 0xB8)
+COLOR_ACCENT = RGBColor(0x0E, 0x74, 0x90)
+
+SLIDE_W = Inches(13.333)
+SLIDE_H = Inches(7.5)
 
 def add_text_to_para(paragraph, text, size_pt, bold=False, color=None, alignment=None):
-    """Helper para agregar texto con formato explícito"""
     paragraph.text = text
     for run in paragraph.runs:
         run.font.size = Pt(size_pt)
@@ -29,8 +31,7 @@ def add_text_to_para(paragraph, text, size_pt, bold=False, color=None, alignment
         paragraph.alignment = alignment
 
 def set_slide_bg(slide, color):
-    """Fondo oscuro para slides"""
-    bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+    bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H)
     bg.fill.solid()
     bg.fill.fore_color.rgb = color
     bg.line.fill.background()
@@ -43,53 +44,44 @@ def add_title_slide(prs, title, subtitle=""):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, COLOR_DARK)
     
-    # Logo box
-    logo = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.5), Inches(2), Inches(0.6))
+    logo = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.4), Inches(0.3), Inches(1.8), Inches(0.5))
     logo.fill.solid()
     logo.fill.fore_color.rgb = COLOR_PRIMARY
     logo.line.fill.background()
-    tf = logo.text_frame
-    add_text_to_para(tf.paragraphs[0], "G360", 20, True, RGBColor(0xFF, 0xFF, 0xFF))
+    add_text_to_para(logo.text_frame.paragraphs[0], "G360", 18, True, RGBColor(0xFF, 0xFF, 0xFF))
     
-    # Title
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.8), Inches(12.333), Inches(1.2))
-    add_text_to_para(tb.text_frame.paragraphs[0], title, 44, True, COLOR_TEXT)
+    tb = slide.shapes.add_textbox(Inches(0.4), Inches(2.6), Inches(12.5), Inches(1.0))
+    add_text_to_para(tb.text_frame.paragraphs[0], title, 40, True, COLOR_TEXT)
     
-    # Subtitle
     if subtitle:
-        sb = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(12.333), Inches(0.8))
-        add_text_to_para(sb.text_frame.paragraphs[0], subtitle, 22, False, COLOR_MUTED)
+        sb = slide.shapes.add_textbox(Inches(0.4), Inches(3.8), Inches(12.5), Inches(0.6))
+        add_text_to_para(sb.text_frame.paragraphs[0], subtitle, 20, False, COLOR_MUTED)
     
-    # Footer
-    fb = slide.shapes.add_textbox(Inches(0.5), Inches(6.8), Inches(12.333), Inches(0.4))
-    add_text_to_para(fb.text_frame.paragraphs[0], "CIPSA - Intelligence Division", 14, False, COLOR_MUTED, PP_ALIGN.RIGHT)
+    fb = slide.shapes.add_textbox(Inches(0.4), Inches(6.9), Inches(12.5), Inches(0.3))
+    add_text_to_para(fb.text_frame.paragraphs[0], "CIPSA - Intelligence Division", 12, False, COLOR_MUTED, PP_ALIGN.RIGHT)
     return slide
 
 def add_section_slide(prs, section_title):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, COLOR_DARK)
     
-    # Accent line
-    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(3.0), Inches(2), Inches(0.06))
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.4), Inches(2.8), Inches(1.8), Inches(0.05))
     line.fill.solid()
     line.fill.fore_color.rgb = COLOR_PRIMARY
     line.line.fill.background()
     
-    # Title
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.6), Inches(12), Inches(1))
-    add_text_to_para(tb.text_frame.paragraphs[0], section_title, 40, True, COLOR_TEXT)
+    tb = slide.shapes.add_textbox(Inches(0.4), Inches(2.4), Inches(12.5), Inches(0.8))
+    add_text_to_para(tb.text_frame.paragraphs[0], section_title, 36, True, COLOR_TEXT)
     return slide
 
-def add_content_slide(prs, title, items):
+def add_content_slide(prs, title, items, content_top=1.1, content_height=5.5):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, COLOR_DARK)
     
-    # Title
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.7))
-    add_text_to_para(tb.text_frame.paragraphs[0], title, 28, True, COLOR_TEXT)
+    tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.25), Inches(12.5), Inches(0.6))
+    add_text_to_para(tb.text_frame.paragraphs[0], title, 26, True, COLOR_TEXT)
     
-    # Content
-    cb = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(12.333), Inches(5.8))
+    cb = slide.shapes.add_textbox(Inches(0.4), Inches(content_top), Inches(12.5), Inches(content_height))
     tf = cb.text_frame
     tf.word_wrap = True
     
@@ -97,20 +89,20 @@ def add_content_slide(prs, title, items):
         p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
         
         if item.startswith("##"):
-            add_text_to_para(p, item[2:].strip(), 20, True, COLOR_PRIMARY)
-            p.space_before = Pt(16)
+            add_text_to_para(p, item[2:].strip(), 18, True, COLOR_PRIMARY)
+            p.space_before = Pt(12)
         elif item.startswith("•"):
-            add_text_to_para(p, "  " + item[1:].strip(), 16, False, COLOR_TEXT)
-            p.space_before = Pt(6)
-        elif item.startswith("  -"):
-            add_text_to_para(p, "    " + item.strip(), 14, False, COLOR_MUTED)
-            p.space_before = Pt(3)
-        elif item.startswith("> "):
-            add_text_to_para(p, item[2:].strip(), 14, False, RGBColor(0x00, 0xD0, 0x84))
+            add_text_to_para(p, "  " + item[1:].strip(), 14, False, COLOR_TEXT)
             p.space_before = Pt(4)
+        elif item.startswith("  -"):
+            add_text_to_para(p, "    " + item.strip(), 12, False, COLOR_MUTED)
+            p.space_before = Pt(2)
+        elif item.startswith("> "):
+            add_text_to_para(p, item[2:].strip(), 12, False, RGBColor(0x00, 0xD0, 0x84))
+            p.space_before = Pt(2)
         else:
-            add_text_to_para(p, item, 16, False, COLOR_TEXT)
-            p.space_before = Pt(6)
+            add_text_to_para(p, item, 14, False, COLOR_TEXT)
+            p.space_before = Pt(4)
     
     return slide
 
@@ -118,11 +110,10 @@ def add_image_placeholder_slide(prs, title, caption=""):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, COLOR_DARK)
     
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.7))
-    add_text_to_para(tb.text_frame.paragraphs[0], title, 28, True, COLOR_TEXT)
+    tb = slide.shapes.add_textbox(Inches(0.4), Inches(0.25), Inches(12.5), Inches(0.6))
+    add_text_to_para(tb.text_frame.paragraphs[0], title, 26, True, COLOR_TEXT)
     
-    # Placeholder
-    ph = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(1.3), Inches(11.733), Inches(5.2))
+    ph = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.6), Inches(1.1), Inches(12.1), Inches(5.5))
     ph.fill.solid()
     ph.fill.fore_color.rgb = RGBColor(0x1E, 0x29, 0x3B)
     ph.line.color.rgb = COLOR_PRIMARY
@@ -130,15 +121,15 @@ def add_image_placeholder_slide(prs, title, caption=""):
     
     tf = ph.text_frame
     tf.word_wrap = True
-    add_text_to_para(tf.paragraphs[0], "[CAPTURA DE PANTALLA]", 24, True, COLOR_MUTED, PP_ALIGN.CENTER)
+    add_text_to_para(tf.paragraphs[0], "[CAPTURA DE PANTALLA]", 22, True, COLOR_MUTED, PP_ALIGN.CENTER)
     p2 = tf.add_paragraph()
-    add_text_to_para(p2, caption, 14, False, COLOR_MUTED, PP_ALIGN.CENTER)
+    add_text_to_para(p2, caption, 12, False, COLOR_MUTED, PP_ALIGN.CENTER)
     return slide
 
 def main():
     prs = Presentation()
-    prs.slide_width = Inches(13.333)
-    prs.slide_height = Inches(7.5)
+    prs.slide_width = SLIDE_W
+    prs.slide_height = SLIDE_H
     
     # 1: PORTADA
     add_title_slide(prs, "StockPulse CIPSA", "Manual Técnico del Sistema de Reportes de Stock")
@@ -168,7 +159,7 @@ def main():
         "• Descarga desde appweb",
         "• Enriquecimiento con catálogo maestro",
         "• Generación de reportes"
-    ])
+    ], content_top=1.0, content_height=5.8)
     
     # 3: ARQUITECTURA
     add_section_slide(prs, "Arquitectura del Sistema")
@@ -188,9 +179,9 @@ def main():
         "",
         "## Catálogo Maestro",
         "• g360-master-data (JSON)",
-        "• Campos: SKU, descripción, un_bx, peso, líneas, categorías",
+        "• Campos: SKU, descripción, un_bx, peso, líneas",
         "• Auto-carga desde GitHub en cada reinicio"
-    ])
+    ], content_top=1.0, content_height=5.8)
     
     # 5: DIAGRAMA
     add_image_placeholder_slide(prs, "Diagrama de Flujo de Datos", "Captura del diagrama arquitectura")
@@ -206,7 +197,7 @@ def main():
         "• Datos consolidados de sucursales",
         "",
         "## Tipo de Almacén",
-        "• venta: VES, 40, 121 (inspección), 122, 129",
+        "• venta: VES, 40, 121, 122, 129",
         "• mktd: 118, S* (sucursales)",
         "• Solo almacenes tipo 'venta' cuentan para el stock comercial"
     ])
@@ -224,10 +215,10 @@ def main():
         "• PUBLICIDAD → líneas: 80, 81",
         "",
         "## Reglas de Asignación",
-        "• El código de línea se extrae del reporte appweb",
-        "• Normalización: '0179 - ACCESORIOS' → '79 - ACCESORIOS'",
+        "• Código extraído del reporte appweb",
+        "• Normalización: '0179' → '79'",
         "• Código '79' → categoría VINIFAN",
-        "• SKUs sin línea asignada → 'OTROS'"
+        "• SKUs sin línea → 'OTROS'"
     ])
     
     # 9: ESTADOS
@@ -237,18 +228,18 @@ def main():
     add_content_slide(prs, "Cálculo de Estado", [
         "## Fórmula de Cajas (bx)",
         "• bx = Math.floor(stock_disponible / un_bx)",
-        "• stock_disponible = suma de 'disponible' en almacenes tipo 'venta'",
-        "• un_bx = unidades por caja (del catálogo maestro)",
+        "• stock_disponible = suma de 'disponible' en venta",
+        "• un_bx = unidades por caja (catálogo maestro)",
         "",
         "## Estados",
-        "• OK → bx >= 10 (10 o más cajas completas)",
-        "• BAJO → 1 <= bx < 10 (1 a 9 cajas)",
+        "• OK → bx >= 10 (10+ cajas completas)",
+        "• BAJO → 1 <= bx < 10 (1-9 cajas)",
         "• AGOTADO → bx == 0 (sin cajas completas)",
         "",
         "## Casos Especiales",
-        "• SKUs vendidos por unidad (un_bx <= 1): se muestra en unidades",
-        "• Stock solo en mktd (ej. 118): aparece como AGOTADO en venta",
-        "• Inspección (121): opcional incluir/excluir en reportes"
+        "• un_bx <= 1: se muestra en unidades",
+        "• Stock solo mktd: aparece como AGOTADO",
+        "• Inspección (121): opcional en reportes"
     ])
     
     # 11: DASHBOARD
@@ -260,18 +251,17 @@ def main():
     # 13: FUSE
     add_content_slide(prs, "Motor de Búsqueda (Fuse.js)", [
         "## Campos Indexados",
-        "• SKU (peso: 2.0) - coincidencia exacta prioritaria",
-        "• Nombre corto (peso: 1.5) - nombre abreviado del producto",
+        "• SKU (peso: 2.0) - coincidencia exacta",
+        "• Nombre corto (peso: 1.5)",
         "• Descripción completa (peso: 1.0)",
-        "• Keywords (peso: 0.6) - atributos: color, tipo, marca",
+        "• Keywords (peso: 0.6) - atributos color/tipo",
         "• EAN13 (peso: 0.8) - código de barras",
-        "• Línea (peso: 0.5) - ej: ACCESORIOS, PELOTAS",
-        "• Categoría (peso: 0.5) - VINIBALL, VINIFAN, etc.",
+        "• Línea (peso: 0.5) - ACCESORIOS, PELOTAS",
+        "• Categoría (peso: 0.5) - VINIFAN, VINIBALL",
         "",
-        "## Normalización",
-        "• Ignora ubicación del término",
-        "• Threshold: 0.3 (tolerancia alta para typo-tolerant)",
-        "• Mínimo 2 caracteres para iniciar búsqueda"
+        "## Configuración",
+        "• Threshold: 0.3 (tolerante a typos)",
+        "• Mínimo 2 caracteres para buscar"
     ])
     
     # 14: VOZ
@@ -279,19 +269,16 @@ def main():
         "## Características",
         "• Web Speech API (SpeechRecognition)",
         "• Idioma: es-PE (Español Perú)",
-        "• Interim results para feedback en tiempo real",
         "",
-        "## Normalización de Voz",
-        "• Convierte números hablados a dígitos:",
-        "> 'cero uno uno cero uno nueve' → '011019'",
-        "• Elimina ruido: 'sku', 'codigo', 'busca', artículos",
+        "## Normalización",
+        "• Números hablados → dígitos",
+        "> 'cero uno uno' → '011'",
+        "• Elimina ruido: sku, codigo, busca",
         "• Quita tildes y puntuación",
-        "• Si todo son dígitos → SKU/EAN directo",
-        "• Si es texto → búsqueda fuzzy por palabras",
         "",
         "## Ejemplos",
-        "• 'buscar tijera vinifan' → busca 'tijera vinifan'",
-        "• 'sku cero uno uno cero uno nueve' → busca '011019'"
+        "• 'tijera vinifan pastel' → búsqueda fuzzy",
+        "• 'sku cero uno uno' → busca '011...'"
     ])
     
     # 15: REPORTES
@@ -300,35 +287,34 @@ def main():
     # 16: TIPOS
     add_content_slide(prs, "Tipos de Reporte", [
         "## Reporte Completo (Pulso)",
-        "• Hoja Resumen: KPIs, totales por categoría y línea",
-        "• Hojas por línea: datos detallados agrupados",
-        "• Hoja Sin Catálogo: SKUs sin estado de línea",
-        "• Opciones: incluir inspección (121), incluir secundarios",
+        "• Hoja Resumen: KPIs por categoría y línea",
+        "• Hojas por línea: datos detallados",
+        "• Hoja Sin Catálogo: SKUs sin estado",
+        "• Opciones: incluir inspección, secundarios",
         "",
         "## Reporte de Estado",
-        "• ConStock: SKUs con bx >= 10",
-        "• BajoStock: SKUs con 1 <= bx < 10",
-        "• SinStock: SKUs con bx = 0 (agotados)",
-        "• SinCatalogo: SKUs fuera del catálogo maestro",
+        "• ConStock: bx >= 10",
+        "• BajoStock: 1 <= bx < 10",
+        "• SinStock: bx = 0",
         "",
-        "## Columnas del Reporte",
-        "SKU · Nombre · Línea · Categoría · Cajas · Disponible venta · Estado"
+        "## Columnas",
+        "SKU · Nombre · Línea · Categoría · Cajas · Disp. venta · Estado"
     ])
     
     # 17: ALERTAS
     add_content_slide(prs, "Sistema de Alertas", [
-        "## Tipos de Alerta",
+        "## Tipos",
         "• Crítico (rojo): bx = 0, SKU agotado",
-        "• Advertencia (amarillo): 1 <= bx < 10, stock bajo",
+        "• Advertencia (amarillo): 1 <= bx < 10",
         "",
         "## Ordenamiento",
-        "• Primero críticos, luego advertencias",
-        "• Dentro de cada tipo: ordenado por bx ascendente",
-        "• Solo SKUs con estado_linea definido (catálogo)",
+        "• Prioridad: críticos primero",
+        "• Luego: bx ascendente",
+        "• Solo SKUs con estado_linea definido",
         "",
-        "## Notificación",
-        "• Badge en navegación con contador de alertas críticas",
-        "• Panel dedicado con filtros: Todos, Sin Stock, Bajo Stock"
+        "## UI",
+        "• Badge con contador en navegación",
+        "• Panel con filtros: Todos, Sin Stock, Bajo Stock"
     ])
     
     # 18: SEGURIDAD
@@ -336,20 +322,19 @@ def main():
     
     # 19: AUTH
     add_content_slide(prs, "Autenticación", [
-        "## Claves de Acceso",
-        "• S1_API_KEY: Administrativa (upload, catalogo, resumen)",
-        "• S1_READ_API_KEY: Lectura para frontend estático",
+        "## Claves",
+        "• S1_API_KEY: Administrativa",
+        "• S1_READ_API_KEY: Lectura frontend",
         "",
-        "## Endpoints Protegidos",
-        "• GET /api/v1/stock → requiere S1_READ_API_KEY",
-        "• GET /api/v1/health → requiere S1_READ_API_KEY",
-        "• POST /api/v1/catalog/upload → requiere S1_API_KEY",
-        "• GET /api/v1/resumen → requiere S1_API_KEY",
+        "## Endpoints",
+        "• GET /stock → S1_READ_API_KEY",
+        "• GET /health → S1_READ_API_KEY",
+        "• POST /catalog/upload → S1_API_KEY",
         "",
         "## CORS",
-        "• Permitido: https://carloscus.github.io",
-        "• Desarrollo: http://localhost:3000, :5173",
-        "• Rate limit: 60 requests/minute por IP"
+        "• Producción: github.io",
+        "• Desarrollo: localhost:3000/:5173",
+        "• Rate limit: 60 req/min por IP"
     ])
     
     # 20: DESPLIEGUE
@@ -358,37 +343,33 @@ def main():
     # 21: INFRA
     add_content_slide(prs, "Infraestructura", [
         "## Frontend",
-        "• GitHub Pages (deploy automático desde main)",
+        "• GitHub Pages (deploy automático)",
         "• Build: Vite + Lit",
-        "• URL: https://carloscus.github.io/g360-stock-reporter/",
+        "• URL: carloscus.github.io/g360-stock-reporter",
         "",
         "## Backend",
-        "• Render (servicio gratuito)",
-        "• URL: https://g360-stock-api.onrender.com",
-        "• Variables de entorno: S1_API_KEY, S1_READ_API_KEY",
-        "• Auto-restart si falla (keep-alive cada 15 min)",
+        "• Render (gratuito)",
+        "• URL: g360-stock-api.onrender.com",
+        "• Keep-alive cada 15 min",
         "",
-        "## Ventana Operativa",
-        "• Lunes a Sábado, 07:00 - 22:59 (hora Lima)",
-        "• Domingo y madrugada: no se regenera reporte",
-        "• Cache sirve datos del último ciclo válido"
+        "## Horario",
+        "• Lun-Sáb 07:00-22:59 Lima",
+        "• Dom/madrugada: datos estáticos"
     ])
     
     # 22: INSTALACION
     add_content_slide(prs, "Instalación y Desarrollo", [
         "## Frontend",
         "• npm install",
-        "• npm run dev (puerto 3000)",
-        "• npm run build (genera dist/)",
+        "• npm run dev → localhost:3000",
+        "• npm run build → dist/",
         "",
         "## Backend",
-        "• cd g360-stock-api",
         "• pip install -r requirements.txt",
-        "• uvicorn app.main:app --reload --port 8000",
+        "• uvicorn app.main:app --reload",
         "",
-        "## Variables de Entorno (.env)",
-        "• S1_SOURCE1_URL, S1_SOURCE2_URL (appweb)",
-        "• S1_CACHE_TTL_SEGUNDOS (default: 900)",
+        "## Variables (.env)",
+        "• S1_SOURCE1_URL, S1_SOURCE2_URL",
         "• S1_API_KEY, S1_READ_API_KEY",
         "• S1_CORS_ORIGINS"
     ])
@@ -399,53 +380,49 @@ def main():
     # 24: PROBLEMAS
     add_content_slide(prs, "Problemas Comunes", [
         "## Cache Stale",
-        "• Problema: datos viejos, no se actualizan",
-        "• Solución: Forzar refresh en UI o limpiar localStorage",
+        "• Datos viejos no se actualizan",
+        "• Solución: Forzar refresh o limpiar cache",
         "",
-        "## SKUs Sin Categoría",
-        "• Problema: categoria muestra 'OTROS'",
-        "• Causa: línea no mapeada en CATEGORIAS dict",
-        "• Solución: Agregar código de línea al mapeo",
+        "## Categoría OTROS",
+        "• Línea no mapeada en CATEGORIAS",
+        "• Solución: Agregar código al mapeo",
         "",
         "## Stock 0 Incorrecto",
-        "• Problema: SKU con stock en 118 muestra 0",
-        "• Causa: 118 es tipo mktd, no cuenta para venta",
-        "• Solución: Verificar si el SKU tiene almacenes de venta",
+        "• SKU solo tiene stock mktd (118)",
+        "• Solución: Verificar almacenes de venta",
         "",
         "## API No Responde",
-        "• Verificar que S1_API_KEY esté configurada en Render",
-        "• Check logs de Render si el servicio está awake"
+        "• Verificar S1_API_KEY en Render",
+        "• Check logs si servicio está awake"
     ])
     
     # 25: FUTURO
     add_content_slide(prs, "Mejoras Futuras Planeadas", [
-        "• Integración con ERP para rotación de SKUs",
-        "• Alertas push/notificaciones en tiempo real",
+        "• Integración ERP para rotación de SKUs",
+        "• Alertas push en tiempo real",
         "• Reportes por almacén específico",
         "• Gráficos de tendencia histórica",
         "• Módulo de reposición automática",
-        "• App nativa móvil (React Native/Flutter)",
+        "• App nativa móvil (RN/Flutter)",
         "• Dashboard ejecutivo con KPIs avanzados"
-    ])
+    ], content_top=1.2, content_height=5.5)
     
     # 26: CIERRE
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_slide_bg(slide, COLOR_DARK)
     
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1.2))
-    add_text_to_para(tb.text_frame.paragraphs[0], "StockPulse CIPSA", 44, True, COLOR_TEXT, PP_ALIGN.CENTER)
+    tb = slide.shapes.add_textbox(Inches(0.4), Inches(2.4), Inches(12.5), Inches(1.0))
+    add_text_to_para(tb.text_frame.paragraphs[0], "StockPulse CIPSA", 40, True, COLOR_TEXT, PP_ALIGN.CENTER)
     
-    sb = slide.shapes.add_textbox(Inches(0.5), Inches(4.0), Inches(12.333), Inches(0.8))
-    add_text_to_para(sb.text_frame.paragraphs[0], "Inteligencia de Stock en Tiempo Real", 22, False, COLOR_MUTED, PP_ALIGN.CENTER)
+    sb = slide.shapes.add_textbox(Inches(0.4), Inches(3.6), Inches(12.5), Inches(0.6))
+    add_text_to_para(sb.text_frame.paragraphs[0], "Inteligencia de Stock en Tiempo Real", 20, False, COLOR_MUTED, PP_ALIGN.CENTER)
     
-    cb = slide.shapes.add_textbox(Inches(0.5), Inches(5.8), Inches(12.333), Inches(0.5))
-    add_text_to_para(cb.text_frame.paragraphs[0], "¿Consultas? Contactar al equipo G360", 16, False, COLOR_PRIMARY, PP_ALIGN.CENTER)
+    cb = slide.shapes.add_textbox(Inches(0.4), Inches(5.5), Inches(12.5), Inches(0.4))
+    add_text_to_para(cb.text_frame.paragraphs[0], "¿Consultas? Contactar al equipo G360", 14, False, COLOR_PRIMARY, PP_ALIGN.CENTER)
     
-    # Save
     output_path = os.path.join(os.path.dirname(__file__), "StockPulse_Manual_Tecnico.pptx")
     prs.save(output_path)
-    print(f"[OK] Presentacion guardada: {output_path}")
-    print(f"Slides generados: {len(prs.slides)}")
+    print(f"[OK] Slides generados: {len(prs.slides)}")
 
 if __name__ == "__main__":
     main()
