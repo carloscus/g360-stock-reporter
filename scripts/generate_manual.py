@@ -1,7 +1,6 @@
 """
-StockPulse CIPSA - Manual Técnico (Versión Concisa 10 slides)
+StockPulse CIPSA - Manual Técnico (10 slides)
 """
-
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
@@ -9,7 +8,6 @@ from pptx.enum.text import PP_ALIGN
 from pptx.enum.shapes import MSO_SHAPE
 import os
 
-# Paleta CIPSA/G360
 C = {
     'primary': RGBColor(0x00, 0xD0, 0x84),
     'dark': RGBColor(0x0F, 0x17, 0x2A),
@@ -17,7 +15,6 @@ C = {
     'text': RGBColor(0xF0, 0xF4, 0xF8),
     'muted': RGBColor(0x94, 0xA3, 0xB8),
 }
-
 W, H = Inches(13.333), Inches(7.5)
 
 def set_bg(slide, color):
@@ -30,7 +27,7 @@ def set_bg(slide, color):
     spTree.remove(sp)
     spTree.insert(2, sp)
 
-def add_text(p, text, size_pt, bold=False, color=None, align=None):
+def txt(p, text, size_pt, bold=False, color=None, align=None):
     p.text = text
     for run in p.runs:
         run.font.size = Pt(size_pt)
@@ -41,113 +38,85 @@ def add_text(p, text, size_pt, bold=False, color=None, align=None):
     if align:
         p.alignment = align
 
-def add_para(tf, text, size_pt=14, bold=False, color=None, level=0, space_before=4):
-    p = tf.add_paragraph() if tf.paragraphs[0].text else tf.paragraphs[0]
-    add_text(p, text, size_pt, bold, color, spacing_before=space_before)
-    p.level = level
-    return p
+def add_box(prs, left, top, width, height):
+    return prs.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
 
 def slide_title(prs, title, subtitle=""):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
-    
-    # Accent bar
     bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.4), Inches(0.08), Inches(0.8))
     bar.fill.solid()
     bar.fill.fore_color.rgb = C['primary']
     bar.line.fill.background()
-    
-    # Logo
-    lb = slide.shapes.add_textbox(Inches(0.7), Inches(0.45), Inches(1.5), Inches(0.5))
-    add_text(lb.text_frame.paragraphs[0], "G360", 20, True, C['primary'])
-    
-    # Title
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1.2))
-    add_text(tb.text_frame.paragraphs[0], title, 48, True, C['text'])
-    
-    # Subtitle
+    tb = add_box(prs, 0.7, 0.45, 1.5, 0.5)
+    txt(tb.text_frame.paragraphs[0], "G360", 20, True, C['primary'])
+    tb = add_box(prs, 0.5, 2.5, 12.333, 1.2)
+    txt(tb.text_frame.paragraphs[0], title, 48, True, C['text'])
     if subtitle:
-        sb = slide.shapes.add_textbox(Inches(0.5), Inches(3.9), Inches(12.333), Inches(0.8))
-        add_text(sb.text_frame.paragraphs[0], subtitle, 22, False, C['muted'])
-    
-    # Footer
-    fb = slide.shapes.add_textbox(Inches(0.5), Inches(6.9), Inches(12.333), Inches(0.4))
-    add_text(fb.text_frame.paragraphs[0], "CIPSA · Intelligence Division", 12, False, C['muted'], PP_ALIGN.RIGHT)
+        tb = add_box(prs, 0.5, 3.9, 12.333, 0.8)
+        txt(tb.text_frame.paragraphs[0], subtitle, 22, False, C['muted'])
+    fb = add_box(prs, 0.5, 6.9, 12.333, 0.4)
+    txt(fb.text_frame.paragraphs[0], "CIPSA · Intelligence Division", 12, False, C['muted'], PP_ALIGN.RIGHT)
     return slide
 
 def section_slide(prs, title):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
-    
     line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(3.0), Inches(2.0), Inches(0.06))
     line.fill.solid()
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
-    
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.6), Inches(12.333), Inches(1))
-    add_text(tb.text_frame.paragraphs[0], title, 40, True, C['text'])
+    tb = add_box(prs, 0.5, 2.6, 12.333, 1)
+    txt(tb.text_frame.paragraphs[0], title, 40, True, C['text'])
     return slide
 
 def content_slide(prs, title, items):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
-    
-    # Title
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.6))
-    add_text(tb.text_frame.paragraphs[0], title, 28, True, C['text'])
-    
-    # Accent line
+    tb = add_box(prs, 0.5, 0.3, 12.333, 0.6)
+    txt(tb.text_frame.paragraphs[0], title, 28, True, C['text'])
     line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.9), Inches(1.5), Inches(0.03))
     line.fill.solid()
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
-    
-    # Content
-    cb = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(12.333), Inches(5.8))
+    cb = add_box(prs, 0.5, 1.2, 12.333, 5.8)
     tf = cb.text_frame
     tf.word_wrap = True
-    
     for i, item in enumerate(items):
         p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
-        
         if item.startswith("##"):
-            add_text(p, item[2:].strip(), 18, True, C['primary'], spacing_before=12)
+            txt(p, item[2:].strip(), 18, True, C['primary'])
         elif item.startswith("•"):
-            add_text(p, "▸ " + item[1:].strip(), 14, False, C['text'], spacing_before=4)
+            txt(p, "▸ " + item[1:].strip(), 14, False, C['text'])
         elif item.startswith("  -"):
-            add_text(p, "  " + item.strip(), 12, False, C['muted'], spacing_before=2)
+            txt(p, "  " + item.strip(), 12, False, C['muted'])
         elif item.startswith("> "):
-            add_text(p, "「 " + item[2:].strip() + " 」", 12, False, C['primary'], spacing_before=4)
+            txt(p, "「 " + item[2:].strip() + " 」", 12, False, C['primary'])
         elif item == "":
-            add_text(p, "", 8)
+            txt(p, "", 8)
         else:
-            add_text(p, item, 14, False, C['text'], spacing_before=4)
-    
+            txt(p, item, 14, False, C['text'])
     return slide
 
 def image_slide(prs, title, caption=""):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
-    
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.6))
-    add_text(tb.text_frame.paragraphs[0], title, 28, True, C['text'])
-    
+    tb = add_box(prs, 0.5, 0.3, 12.333, 0.6)
+    txt(tb.text_frame.paragraphs[0], title, 28, True, C['text'])
     line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.9), Inches(1.5), Inches(0.03))
     line.fill.solid()
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
-    
     ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.6), Inches(1.3), Inches(12.1), Inches(5.5))
     ph.fill.solid()
     ph.fill.fore_color.rgb = C['surface']
     ph.line.color.rgb = C['muted']
     ph.line.width = Pt(1)
-    
     tf = ph.text_frame
     tf.word_wrap = True
-    add_text(tf.paragraphs[0], "[ CAPTURA DE PANTALLA ]", 22, True, C['muted'], PP_ALIGN.CENTER, spacing_before=20)
+    txt(tf.paragraphs[0], "[ CAPTURA DE PANTALLA ]", 22, True, C['muted'], PP_ALIGN.CENTER)
     p2 = tf.add_paragraph()
-    add_text(p2, caption, 12, False, C['muted'], PP_ALIGN.CENTER)
+    txt(p2, caption, 12, False, C['muted'], PP_ALIGN.CENTER)
     return slide
 
 def main():
@@ -173,7 +142,7 @@ def main():
         "• Campos: SKU, descripción, un_bx, peso, líneas, categorías"
     ])
     
-    # 3: FLUJO DE DATOS
+    # 3: FLUJO
     image_slide(prs, "Flujo de Datos", "Captura del diagrama arquitectura")
     
     # 4: CATEGORÍAS
@@ -185,7 +154,7 @@ def main():
         "• PUBLICIDAD → líneas: 80, 81",
         "",
         "## Normalización",
-        "> Entrada: '0179 - ACCESORIOS' → Código: '79' → Categoría: VINIFAN",
+        "> Entrada: '0179 - ACCESORIOS' → Código: '79' → VINIFAN",
         "",
         "## Estados",
         "• OK → bx >= 10 | BAJO → 1-9 bx | AGOTADO → bx = 0"
@@ -227,9 +196,9 @@ def main():
         "• S1_API_KEY: Administrativa (upload, catálogo)",
         "• S1_READ_API_KEY: Lectura para frontend",
         "",
-        "## Endpoints",
-        "• GET /stock, /health → READ_KEY",
-        "• POST /catalog/upload → ADMIN_KEY",
+        "## Endpoints Protegidos",
+        "• GET /stock, /health → requiere READ_KEY",
+        "• POST /catalog/upload → requiere ADMIN_KEY",
         "",
         "## Controles",
         "• CORS: github.io + localhost",
@@ -249,8 +218,7 @@ def main():
         "",
         "## Variables Clave",
         "• S1_SOURCE1_URL, S1_SOURCE2_URL (appweb)",
-        "• S1_API_KEY, S1_READ_API_KEY (separar permisos)",
-        "• S1_CORS_ORIGINS (restringir a dominios autorizados)"
+        "• S1_API_KEY, S1_READ_API_KEY (separar permisos)"
     ])
     
     # 9: TROUBLESHOOTING
@@ -271,27 +239,22 @@ def main():
     # 10: CIERRE
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
-    
     line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(3.0), Inches(2.0), Inches(0.06))
     line.fill.solid()
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
-    
-    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.0), Inches(12.333), Inches(1.0))
-    add_text(tb.text_frame.paragraphs[0], "StockPulse CIPSA", 44, True, C['text'], PP_ALIGN.CENTER)
-    
-    sb = slide.shapes.add_textbox(Inches(0.5), Inches(3.3), Inches(12.333), Inches(0.6))
-    add_text(sb.text_frame.paragraphs[0], "Inteligencia de Stock en Tiempo Real", 20, False, C['muted'], PP_ALIGN.CENTER)
-    
-    cb = slide.shapes.add_textbox(Inches(0.5), Inches(5.0), Inches(12.333), Inches(0.5))
-    add_text(cb.text_frame.paragraphs[0], "¿Consultas? Contactar al equipo G360", 14, False, C['primary'], PP_ALIGN.CENTER)
-    
-    fb = slide.shapes.add_textbox(Inches(0.5), Inches(6.8), Inches(12.333), Inches(0.4))
-    add_text(fb.text_frame.paragraphs[0], "g360-stock-reporter-lit · GitHub", 10, False, C['muted'], PP_ALIGN.RIGHT)
+    tb = add_box(prs, 0.5, 2.0, 12.333, 1.0)
+    txt(tb.text_frame.paragraphs[0], "StockPulse CIPSA", 44, True, C['text'], PP_ALIGN.CENTER)
+    sb = add_box(prs, 0.5, 3.3, 12.333, 0.6)
+    txt(sb.text_frame.paragraphs[0], "Inteligencia de Stock en Tiempo Real", 20, False, C['muted'], PP_ALIGN.CENTER)
+    cb = add_box(prs, 0.5, 5.0, 12.333, 0.5)
+    txt(cb.text_frame.paragraphs[0], "¿Consultas? Contactar al equipo G360", 14, False, C['primary'], PP_ALIGN.CENTER)
+    fb = add_box(prs, 0.5, 6.8, 12.333, 0.4)
+    txt(fb.text_frame.paragraphs[0], "g360-stock-reporter-lit · GitHub", 10, False, C['muted'], PP_ALIGN.RIGHT)
     
     output_path = os.path.join(os.path.dirname(__file__), "StockPulse_Manual_Tecnico.pptx")
     prs.save(output_path)
-    print(f"[OK] Manual generado: {len(prs.slides)} slides")
+    print(f"[OK] Manual: {len(prs.slides)} slides")
 
 if __name__ == "__main__":
     main()
