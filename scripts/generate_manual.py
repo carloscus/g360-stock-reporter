@@ -1,6 +1,6 @@
 """
-StockPulse CIPSA - Manual Técnico
-Generación de presentación PPTX con estructura completa
+StockPulse CIPSA - Manual Técnico v2
+Generación de presentación PPTX con fuentes explícitas y diseño consistente
 """
 
 from pptx import Presentation
@@ -8,7 +8,6 @@ from pptx.util import Inches, Pt, Emu
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.oxml.ns import nsmap
 import os
 
 # Colores corporativos G360/CIPSA
@@ -18,214 +17,122 @@ COLOR_TEXT = RGBColor(0xF0, 0xF4, 0xF8)        # Texto claro
 COLOR_MUTED = RGBColor(0x94, 0xA3, 0xB8)       # Texto secundario
 COLOR_ACCENT = RGBColor(0x0E, 0x74, 0x90)      # Azul secundario
 
-def set_slide_bg_color(slide, color):
-    """Establecer fondo oscuro para slides"""
-    background = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5)
-    )
-    background.fill.solid()
-    background.fill.fore_color.rgb = color
-    background.line.fill.background()
-    # Mover al fondo
+def add_text_to_para(paragraph, text, size_pt, bold=False, color=None, alignment=None):
+    """Helper para agregar texto con formato explícito"""
+    paragraph.text = text
+    for run in paragraph.runs:
+        run.font.size = Pt(size_pt)
+        run.font.bold = bold
+        if color:
+            run.font.color.rgb = color
+    if alignment:
+        paragraph.alignment = alignment
+
+def set_slide_bg(slide, color):
+    """Fondo oscuro para slides"""
+    bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(13.333), Inches(7.5))
+    bg.fill.solid()
+    bg.fill.fore_color.rgb = color
+    bg.line.fill.background()
     spTree = slide.shapes._spTree
-    sp = background._element
+    sp = bg._element
     spTree.remove(sp)
     spTree.insert(2, sp)
 
 def add_title_slide(prs, title, subtitle=""):
-    """Slide de título con fondo corporativo"""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])  # Blank layout
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    set_slide_bg(slide, COLOR_DARK)
     
-    # Fondo oscuro
-    set_slide_bg_color(slide, COLOR_DARK)
+    # Logo box
+    logo = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.5), Inches(2), Inches(0.6))
+    logo.fill.solid()
+    logo.fill.fore_color.rgb = COLOR_PRIMARY
+    logo.line.fill.background()
+    tf = logo.text_frame
+    add_text_to_para(tf.paragraphs[0], "G360", 20, True, RGBColor(0xFF, 0xFF, 0xFF))
     
-    # Logo/Brand area
-    logo_box = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(0.5), Inches(2), Inches(0.5)
-    )
-    logo_box.fill.solid()
-    logo_box.fill.fore_color.rgb = COLOR_PRIMARY
-    logo_box.line.fill.background()
+    # Title
+    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.8), Inches(12.333), Inches(1.2))
+    add_text_to_para(tb.text_frame.paragraphs[0], title, 44, True, COLOR_TEXT)
     
-    tf = logo_box.text_frame
-    tf.text = "G360"
-    tf.paragraphs[0].font.size = Pt(18)
-    tf.paragraphs[0].font.bold = True
-    tf.paragraphs[0].font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-    
-    # Título principal
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1.5))
-    tf = title_box.text_frame
-    tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = title
-    p.font.size = Pt(44)
-    p.font.bold = True
-    p.font.color.rgb = COLOR_TEXT
-    
-    # Subtítulo
+    # Subtitle
     if subtitle:
-        sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(12.333), Inches(1))
-        tf = sub_box.text_frame
-        p = tf.paragraphs[0]
-        p.text = subtitle
-        p.font.size = Pt(24)
-        p.font.color.rgb = COLOR_MUTED
+        sb = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(12.333), Inches(0.8))
+        add_text_to_para(sb.text_frame.paragraphs[0], subtitle, 22, False, COLOR_MUTED)
     
     # Footer
-    footer = slide.shapes.add_textbox(Inches(0.5), Inches(6.8), Inches(12.333), Inches(0.4))
-    tf = footer.text_frame
-    p = tf.paragraphs[0]
-    p.text = "CIPSA · Intelligence Division"
-    p.font.size = Pt(14)
-    p.font.color.rgb = COLOR_MUTED
-    p.alignment = PP_ALIGN.RIGHT
-    
+    fb = slide.shapes.add_textbox(Inches(0.5), Inches(6.8), Inches(12.333), Inches(0.4))
+    add_text_to_para(fb.text_frame.paragraphs[0], "CIPSA - Intelligence Division", 14, False, COLOR_MUTED, PP_ALIGN.RIGHT)
     return slide
 
 def add_section_slide(prs, section_title):
-    """Slide separador de sección"""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    set_slide_bg_color(slide, COLOR_DARK)
+    set_slide_bg(slide, COLOR_DARK)
     
-    # Línea accent
-    line = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(3.2), Inches(2), Inches(0.08)
-    )
+    # Accent line
+    line = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.5), Inches(3.0), Inches(2), Inches(0.06))
     line.fill.solid()
     line.fill.fore_color.rgb = COLOR_PRIMARY
     line.line.fill.background()
     
-    # Título
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.8), Inches(12), Inches(1))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = section_title
-    p.font.size = Pt(40)
-    p.font.bold = True
-    p.font.color.rgb = COLOR_TEXT
-    
+    # Title
+    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.6), Inches(12), Inches(1))
+    add_text_to_para(tb.text_frame.paragraphs[0], section_title, 40, True, COLOR_TEXT)
     return slide
 
-def add_content_slide(prs, title, content_items, notes=""):
-    """Slide de contenido con lista de items"""
+def add_content_slide(prs, title, items):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    set_slide_bg_color(slide, COLOR_DARK)
+    set_slide_bg(slide, COLOR_DARK)
     
-    # Título
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.4), Inches(12.333), Inches(0.8))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = title
-    p.font.size = Pt(32)
-    p.font.bold = True
-    p.font.color.rgb = COLOR_TEXT
+    # Title
+    tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.7))
+    add_text_to_para(tb.text_frame.paragraphs[0], title, 28, True, COLOR_TEXT)
     
-    # Content area
-    content_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.4), Inches(12.333), Inches(5.5))
-    tf = content_box.text_frame
+    # Content
+    cb = slide.shapes.add_textbox(Inches(0.5), Inches(1.2), Inches(12.333), Inches(5.8))
+    tf = cb.text_frame
     tf.word_wrap = True
     
-    for i, item in enumerate(content_items):
-        if i == 0:
-            p = tf.paragraphs[0]
-        else:
-            p = tf.add_paragraph()
+    for i, item in enumerate(items):
+        p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
         
-        # Check if it's a bullet or header
         if item.startswith("##"):
-            p.text = item[2:].strip()
-            p.font.size = Pt(24)
-            p.font.bold = True
-            p.font.color.rgb = COLOR_PRIMARY
-            p.space_before = Pt(20)
+            add_text_to_para(p, item[2:].strip(), 20, True, COLOR_PRIMARY)
+            p.space_before = Pt(16)
         elif item.startswith("•"):
-            p.text = item[1:].strip()
-            p.font.size = Pt(18)
-            p.font.color.rgb = COLOR_TEXT
-            p.level = 0
-            p.space_before = Pt(8)
+            add_text_to_para(p, "  " + item[1:].strip(), 16, False, COLOR_TEXT)
+            p.space_before = Pt(6)
         elif item.startswith("  -"):
-            p.text = item.strip()
-            p.font.size = Pt(16)
-            p.font.color.rgb = COLOR_MUTED
-            p.level = 1
+            add_text_to_para(p, "    " + item.strip(), 14, False, COLOR_MUTED)
+            p.space_before = Pt(3)
+        elif item.startswith("> "):
+            add_text_to_para(p, item[2:].strip(), 14, False, RGBColor(0x00, 0xD0, 0x84))
             p.space_before = Pt(4)
         else:
-            p.text = item
-            p.font.size = Pt(18)
-            p.font.color.rgb = COLOR_TEXT
-            p.space_before = Pt(8)
+            add_text_to_para(p, item, 16, False, COLOR_TEXT)
+            p.space_before = Pt(6)
     
     return slide
 
 def add_image_placeholder_slide(prs, title, caption=""):
-    """Slide con placeholder para imagen/screenshot"""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    set_slide_bg_color(slide, COLOR_DARK)
+    set_slide_bg(slide, COLOR_DARK)
     
-    # Título
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.4), Inches(12.333), Inches(0.8))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = title
-    p.font.size = Pt(32)
-    p.font.bold = True
-    p.font.color.rgb = COLOR_TEXT
+    tb = slide.shapes.add_textbox(Inches(0.5), Inches(0.3), Inches(12.333), Inches(0.7))
+    add_text_to_para(tb.text_frame.paragraphs[0], title, 28, True, COLOR_TEXT)
     
-    # Placeholder box
-    placeholder = slide.shapes.add_shape(
-        MSO_SHAPE.RECTANGLE, Inches(1), Inches(1.5), Inches(11.333), Inches(5)
-    )
-    placeholder.fill.solid()
-    placeholder.fill.fore_color.rgb = RGBColor(0x1E, 0x29, 0x3B)
-    placeholder.line.color.rgb = COLOR_PRIMARY
-    placeholder.line.width = Pt(2)
+    # Placeholder
+    ph = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0.8), Inches(1.3), Inches(11.733), Inches(5.2))
+    ph.fill.solid()
+    ph.fill.fore_color.rgb = RGBColor(0x1E, 0x29, 0x3B)
+    ph.line.color.rgb = COLOR_PRIMARY
+    ph.line.width = Pt(2)
     
-    # Text overlay
-    tf = placeholder.text_frame
+    tf = ph.text_frame
     tf.word_wrap = True
-    p = tf.paragraphs[0]
-    p.text = "[CAPTURA DE PANTALLA]"
-    p.font.size = Pt(28)
-    p.font.bold = True
-    p.font.color.rgb = COLOR_MUTED
-    p.alignment = PP_ALIGN.CENTER
-    
+    add_text_to_para(tf.paragraphs[0], "[CAPTURA DE PANTALLA]", 24, True, COLOR_MUTED, PP_ALIGN.CENTER)
     p2 = tf.add_paragraph()
-    p2.text = caption
-    p2.font.size = Pt(14)
-    p2.font.color.rgb = COLOR_MUTED
-    p2.alignment = PP_ALIGN.CENTER
-    
-    return slide
-
-def add_diagram_slide(prs, title, diagram_text):
-    """Slide para diagrama ASCII/架构图"""
-    slide = prs.slides.add_slide(prs.slide_layouts[6])
-    set_slide_bg_color(slide, COLOR_DARK)
-    
-    # Título
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.4), Inches(12.333), Inches(0.8))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = title
-    p.font.size = Pt(32)
-    p.font.bold = True
-    p.font.color.rgb = COLOR_TEXT
-    
-    # Diagram text
-    diagram_box = slide.shapes.add_textbox(Inches(0.8), Inches(1.4), Inches(11.733), Inches(5.5))
-    tf = diagram_box.text_frame
-    tf.word_wrap = True
-    
-    for line in diagram_text.split('\n'):
-        p = tf.add_paragraph() if tf.paragraphs[0].text else tf.paragraphs[0]
-        p.text = line
-        p.font.size = Pt(14)
-        p.font.color.rgb = COLOR_TEXT
-        p.font.name = 'Consolas'
-    
+    add_text_to_para(p2, caption, 14, False, COLOR_MUTED, PP_ALIGN.CENTER)
     return slide
 
 def main():
@@ -233,17 +140,17 @@ def main():
     prs.slide_width = Inches(13.333)
     prs.slide_height = Inches(7.5)
     
-    # ===== SLIDE 1: PORTADA =====
+    # 1: PORTADA
     add_title_slide(prs, "StockPulse CIPSA", "Manual Técnico del Sistema de Reportes de Stock")
     
-    # ===== SLIDE 2: ÍNDICE =====
+    # 2: INDICE
     add_content_slide(prs, "Contenido", [
         "## Arquitectura del Sistema",
         "• Frontend PWA (Lit Web Components)",
         "• Backend API (FastAPI + Render)",
         "• Flujo de datos y capas de caché",
         "",
-        "## Categorias de Negocio",
+        "## Categorías de Negocio",
         "• VINIBALL, VINIFAN, REPRESENTADAS",
         "• Mapeo por línea de producto",
         "",
@@ -263,9 +170,10 @@ def main():
         "• Generación de reportes"
     ])
     
-    # ===== SLIDE 3: ARQUITECTURA =====
+    # 3: ARQUITECTURA
     add_section_slide(prs, "Arquitectura del Sistema")
     
+    # 4: COMPONENTES
     add_content_slide(prs, "Componentes Principales", [
         "## Frontend (GitHub Pages)",
         "• g360-stock-reporter-lit (Lit 3 PWA)",
@@ -284,10 +192,10 @@ def main():
         "• Auto-carga desde GitHub en cada reinicio"
     ])
     
-    # ===== SLIDE 4: DIAGRAMA FLUJO =====
+    # 5: DIAGRAMA
     add_image_placeholder_slide(prs, "Diagrama de Flujo de Datos", "Captura del diagrama arquitectura")
     
-    # ===== SLIDE 5: FUENTES DE DATOS =====
+    # 6: FUENTES
     add_content_slide(prs, "Fuentes de Datos (appweb)", [
         "## Appweb 1 - General",
         "• Almacenes: VES, 40, 118, 121, 122, 129",
@@ -303,9 +211,10 @@ def main():
         "• Solo almacenes tipo 'venta' cuentan para el stock comercial"
     ])
     
-    # ===== SLIDE 6: CATEGORÍAS =====
+    # 7: CATEGORÍAS
     add_section_slide(prs, "Categorías de Negocio")
     
+    # 8: LINEAS Y CATEGORIAS
     add_content_slide(prs, "Lineas y Categorías", [
         "## Mapeo Automático por Código de Línea",
         "• VINIBALL → líneas: 01, MA, 14, AD",
@@ -321,9 +230,10 @@ def main():
         "• SKUs sin línea asignada → 'OTROS'"
     ])
     
-    # ===== SLIDE 7: ESTADOS DE STOCK =====
+    # 9: ESTADOS
     add_section_slide(prs, "Estados de Stock")
     
+    # 10: CALCULO
     add_content_slide(prs, "Cálculo de Estado", [
         "## Fórmula de Cajas (bx)",
         "• bx = Math.floor(stock_disponible / un_bx)",
@@ -341,14 +251,15 @@ def main():
         "• Inspección (121): opcional incluir/excluir en reportes"
     ])
     
-    # ===== SLIDE 8: DASHBOARD =====
+    # 11: DASHBOARD
     add_image_placeholder_slide(prs, "Dashboard Principal", "Captura del panel de estado")
     
-    # ===== SLIDE 9: BÚSQUEDA =====
+    # 12: BUSQUEDA
     add_section_slide(prs, "Búsqueda Avanzada")
     
+    # 13: FUSE
     add_content_slide(prs, "Motor de Búsqueda (Fuse.js)", [
-        "## Campers Indexados",
+        "## Campos Indexados",
         "• SKU (peso: 2.0) - coincidencia exacta prioritaria",
         "• Nombre corto (peso: 1.5) - nombre abreviado del producto",
         "• Descripción completa (peso: 1.0)",
@@ -363,16 +274,16 @@ def main():
         "• Mínimo 2 caracteres para iniciar búsqueda"
     ])
     
-    # ===== SLIDE 10: BÚSQUEDA POR VOZ =====
+    # 14: VOZ
     add_content_slide(prs, "Búsqueda por Voz", [
         "## Características",
-        "• Web Speech API ( SpeechRecognition )",
+        "• Web Speech API (SpeechRecognition)",
         "• Idioma: es-PE (Español Perú)",
         "• Interim results para feedback en tiempo real",
         "",
         "## Normalización de Voz",
         "• Convierte números hablados a dígitos:",
-        "  'cero uno uno cero uno nueve' → '011019'",
+        "> 'cero uno uno cero uno nueve' → '011019'",
         "• Elimina ruido: 'sku', 'codigo', 'busca', artículos",
         "• Quita tildes y puntuación",
         "• Si todo son dígitos → SKU/EAN directo",
@@ -383,9 +294,10 @@ def main():
         "• 'sku cero uno uno cero uno nueve' → busca '011019'"
     ])
     
-    # ===== SLIDE 11: REPORTES XLSX =====
+    # 15: REPORTES
     add_section_slide(prs, "Reportes Exportables")
     
+    # 16: TIPOS
     add_content_slide(prs, "Tipos de Reporte", [
         "## Reporte Completo (Pulso)",
         "• Hoja Resumen: KPIs, totales por categoría y línea",
@@ -403,7 +315,7 @@ def main():
         "SKU · Nombre · Línea · Categoría · Cajas · Disponible venta · Estado"
     ])
     
-    # ===== SLIDE 12: ALERTAS =====
+    # 17: ALERTAS
     add_content_slide(prs, "Sistema de Alertas", [
         "## Tipos de Alerta",
         "• Crítico (rojo): bx = 0, SKU agotado",
@@ -419,9 +331,10 @@ def main():
         "• Panel dedicado con filtros: Todos, Sin Stock, Bajo Stock"
     ])
     
-    # ===== SLIDE 13: SEGURIDAD =====
+    # 18: SEGURIDAD
     add_section_slide(prs, "Seguridad y Acceso")
     
+    # 19: AUTH
     add_content_slide(prs, "Autenticación", [
         "## Claves de Acceso",
         "• S1_API_KEY: Administrativa (upload, catalogo, resumen)",
@@ -439,9 +352,10 @@ def main():
         "• Rate limit: 60 requests/minute por IP"
     ])
     
-    # ===== SLIDE 14: DESPLEGUE =====
+    # 20: DESPLIEGUE
     add_section_slide(prs, "Despliegue y Operación")
     
+    # 21: INFRA
     add_content_slide(prs, "Infraestructura", [
         "## Frontend",
         "• GitHub Pages (deploy automático desde main)",
@@ -460,7 +374,7 @@ def main():
         "• Cache sirve datos del último ciclo válido"
     ])
     
-    # ===== SLIDE 15: INSTALACIÓN =====
+    # 22: INSTALACION
     add_content_slide(prs, "Instalación y Desarrollo", [
         "## Frontend",
         "• npm install",
@@ -479,9 +393,10 @@ def main():
         "• S1_CORS_ORIGINS"
     ])
     
-    # ===== SLIDE 16: TROUBLESHOOTING =====
+    # 23: TROUBLESHOOTING
     add_section_slide(prs, "Troubleshooting")
     
+    # 24: PROBLEMAS
     add_content_slide(prs, "Problemas Comunes", [
         "## Cache Stale",
         "• Problema: datos viejos, no se actualizan",
@@ -502,7 +417,7 @@ def main():
         "• Check logs de Render si el servicio está awake"
     ])
     
-    # ===== SLIDE 17: PRÓXIMAS MEJORAS =====
+    # 25: FUTURO
     add_content_slide(prs, "Mejoras Futuras Planeadas", [
         "• Integración con ERP para rotación de SKUs",
         "• Alertas push/notificaciones en tiempo real",
@@ -513,42 +428,23 @@ def main():
         "• Dashboard ejecutivo con KPIs avanzados"
     ])
     
-    # ===== SLIDE 18: CIERRE =====
+    # 26: CIERRE
     slide = prs.slides.add_slide(prs.slide_layouts[6])
-    set_slide_bg_color(slide, COLOR_DARK)
+    set_slide_bg(slide, COLOR_DARK)
     
-    # Título central
-    title_box = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1.5))
-    tf = title_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = "StockPulse CIPSA"
-    p.font.size = Pt(48)
-    p.font.bold = True
-    p.font.color.rgb = COLOR_TEXT
-    p.alignment = PP_ALIGN.CENTER
+    tb = slide.shapes.add_textbox(Inches(0.5), Inches(2.5), Inches(12.333), Inches(1.2))
+    add_text_to_para(tb.text_frame.paragraphs[0], "StockPulse CIPSA", 44, True, COLOR_TEXT, PP_ALIGN.CENTER)
     
-    # Subtítulo
-    sub_box = slide.shapes.add_textbox(Inches(0.5), Inches(4.2), Inches(12.333), Inches(1))
-    tf = sub_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = "Inteligencia de Stock en Tiempo Real"
-    p.font.size = Pt(24)
-    p.font.color.rgb = COLOR_MUTED
-    p.alignment = PP_ALIGN.CENTER
+    sb = slide.shapes.add_textbox(Inches(0.5), Inches(4.0), Inches(12.333), Inches(0.8))
+    add_text_to_para(sb.text_frame.paragraphs[0], "Inteligencia de Stock en Tiempo Real", 22, False, COLOR_MUTED, PP_ALIGN.CENTER)
     
-    # Contacto
-    contact_box = slide.shapes.add_textbox(Inches(0.5), Inches(6), Inches(12.333), Inches(0.5))
-    tf = contact_box.text_frame
-    p = tf.paragraphs[0]
-    p.text = "¿Consultas? Contactar al equipo G360"
-    p.font.size = Pt(16)
-    p.font.color.rgb = COLOR_PRIMARY
-    p.alignment = PP_ALIGN.CENTER
+    cb = slide.shapes.add_textbox(Inches(0.5), Inches(5.8), Inches(12.333), Inches(0.5))
+    add_text_to_para(cb.text_frame.paragraphs[0], "¿Consultas? Contactar al equipo G360", 16, False, COLOR_PRIMARY, PP_ALIGN.CENTER)
     
-    # Guardar
+    # Save
     output_path = os.path.join(os.path.dirname(__file__), "StockPulse_Manual_Tecnico.pptx")
     prs.save(output_path)
-    print(f"[OK] Presentación guardada: {output_path}")
+    print(f"[OK] Presentacion guardada: {output_path}")
     print(f"Slides generados: {len(prs.slides)}")
 
 if __name__ == "__main__":
