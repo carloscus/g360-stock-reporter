@@ -38,8 +38,8 @@ def txt(p, text, size_pt, bold=False, color=None, align=None):
     if align:
         p.alignment = align
 
-def add_box(prs, left, top, width, height):
-    return prs.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
+def add_box(slide, left, top, width, height):
+    return slide.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
 
 def slide_title(prs, title, subtitle=""):
     slide = prs.slides.add_slide(prs.slide_layouts[6])
