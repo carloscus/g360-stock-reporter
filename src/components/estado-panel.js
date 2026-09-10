@@ -4,11 +4,12 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.0.0
+ * @version 4.2.0
  */
 
 import { LitElement, html, css } from 'lit';
 import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esSinCatalogo } from '../core/stock-service.js';
+import { ALMACEN_EXPORTACION } from '../core/stock-store.js';
 
 export class EstadoPanel extends LitElement {
   static properties = {
@@ -489,6 +490,12 @@ export class EstadoPanel extends LitElement {
       color: #f59e0b;
     }
 
+    .almacen-chip.exportacion {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.4);
+      color: #a78bfa;
+    }
+
     .empty {
       text-align: center;
       padding: 40px;
@@ -582,6 +589,29 @@ export class EstadoPanel extends LitElement {
     return (this.stockData?.productos || []).filter(esSinCatalogo).length;
   }
 
+  _getExport122Count() {
+    return (this.stockData?.productos || []).filter((p) => {
+      const e = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
+      return (e?.disponible || 0) > 0 || (e?.predespacho || 0) > 0;
+    }).length;
+  }
+
+  async _export122() {
+    try {
+      const { generateExport122XLSX, downloadBlob } = await import('../core/report-generator.js');
+      const productos = this.stockData?.productos || [];
+      const blob = await generateExport122XLSX(productos);
+      const fecha = new Date().toLocaleString('es-PE', {
+        day: '2-digit', month: '2-digit', year: '2-digit',
+      }).replace(/\//g, '-');
+      downloadBlob(blob, `StockPulse_122_Exportacion_${fecha}.xlsx`);
+    } catch (error) {
+      console.error('[estado-panel] Error exportando 122:', error.message);
+    } finally {
+      this.exportOpen = false;
+    }
+  }
+
   async _exportXLSX(tipo = 'conStock') {
     const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
     try {
@@ -649,6 +679,10 @@ export class EstadoPanel extends LitElement {
               <button class="export-option separator" @click=${() => this._exportXLSX('sinCatalogo')}>
                 <span>Sin Catálogo</span>
                 <span class="count">${this._getSinCatalogoCount()}</span>
+              </button>
+              <button class="export-option separator" @click=${() => this._export122()}>
+                <span>122 (Exportación)</span>
+                <span class="count">${this._getExport122Count()}</span>
               </button>
             </div>
           ` : ''}
@@ -764,7 +798,7 @@ export class EstadoPanel extends LitElement {
                       </div>
                       <div class="almacen-chips">
                         ${(s.almacenes_venta || []).map(a => html`
-                          <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : ''}">${a.almacen}: ${a.disponible}</span>
+                          <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}">${a.almacen}: ${a.disponible}</span>
                         `)}
                       </div>
                     </div>

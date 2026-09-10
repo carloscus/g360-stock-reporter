@@ -5,11 +5,10 @@
  *              Usa stock-store con 3 capas: memoria → sessionStorage → localStorage → API.
  *              Sin dependencias de JSON estáticos (enriquecimiento viene del API).
  * @author @carloscus
- * @version 7.0.0
+ * @version 7.2.0
  */
 
-import { saveData, loadData, isStale, getMeta } from './stock-store.js';
-import { INSPECCION_ALMACEN } from './stock-store.js';
+import { saveData, loadData, isStale, getMeta, INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_TRASLADO } from './stock-store.js';
 
 const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock';
 // Clave de lectura limitada para la PWA estatica. Nunca usar aqui la clave
@@ -89,6 +88,17 @@ function _extraerAlmacenesVenta(item) {
 function _calcularStockTotal(almacenesVenta) {
   if (!almacenesVenta || almacenesVenta.length === 0) return 0;
   return almacenesVenta.reduce((sum, a) => sum + a.disponible, 0);
+}
+
+/**
+ * Disponible de venta = disponible del almacén VES (único de venta directa).
+ * Los lotes 129 (Secundario), 40 (Traslado) y 121 (Inspección/QC) son
+ * informativos e independientes: NUNCA se suman al disponible, porque son
+ * lotes diferentes y el vendedor de campo podría equivocarse.
+ * Criterio único compartido por dashboard, alertas, buscador y reportes.
+ */
+function _calcularStockVES(almacenesVenta) {
+  return almacenesVenta?.find((a) => a.almacen === ALMACEN_PRINCIPAL)?.disponible || 0;
 }
 
 /**
@@ -177,7 +187,11 @@ function _transformAPIResponse(apiData) {
 
   for (const item of apiData.items) {
     const almacenesVenta = _extraerAlmacenesVenta(item);
-    const stock = _calcularStockTotal(almacenesVenta);
+    // stock = disponible VES (único almacén de venta): criterio de estados,
+    // alertas y reportes. stockFisico = total en almacenes de venta
+    // (VES+129+40+121): solo para KPIs de valor/peso de inventario.
+    const stock = _calcularStockVES(almacenesVenta);
+    const stockFisico = _calcularStockTotal(almacenesVenta);
     // un_bx ya viene del API enriquecido
     const unBx = item.un_bx || 1;
     const bx = Math.floor(stock / unBx);
@@ -205,6 +219,7 @@ function _transformAPIResponse(apiData) {
       orden: item.orden || 0,
       sin_catalogo: item.sin_catalogo || false,
       stock,
+      stockFisico,
       bx,
       predespacho: almacenesVenta.reduce((sum, a) => sum + a.predespacho, 0),
       almacenes_venta: almacenesVenta,
@@ -422,7 +437,7 @@ export function calculateKPIs(productos) {
   const sinPrecio = [];
 
   for (const p of productos) {
-    const stock = p.stock ?? 0;
+    const stock = p.stockFisico ?? p.stock ?? 0;
     unidades += stock;
 
     valorInventario += stock * (p.precio || 0);
@@ -447,7 +462,7 @@ export function calculateKPIs(productos) {
   }
 
   // Unidades que no deberían existir (stock sin precio de lista)
-  const unidadesSinPrecio = sinPrecio.reduce((s, p) => s + (p.stock ?? 0), 0);
+  const unidadesSinPrecio = sinPrecio.reduce((s, p) => s + (p.stockFisico ?? p.stock ?? 0), 0);
 
   const estados = Object.entries(porEstadoLinea)
     .sort((a, b) => b[1] - a[1])

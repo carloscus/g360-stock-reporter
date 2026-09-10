@@ -3,7 +3,7 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.0.0
+ * @version 3.4.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -11,6 +11,7 @@ import { live } from 'lit/directives/live.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import Fuse from 'fuse.js';
 import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo } from '../core/stock-service.js';
+import { ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
 
 export class StockSearch extends LitElement {
   static properties = {
@@ -213,6 +214,14 @@ export class StockSearch extends LitElement {
       color: #ef4444;
     }
 
+    .stock-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--g360-muted);
+    }
+
     .ean {
       font-size: 9px;
       color: var(--g360-muted);
@@ -248,6 +257,50 @@ export class StockSearch extends LitElement {
       background: rgba(245, 158, 11, 0.15);
       border-color: rgba(245, 158, 11, 0.3);
       color: #f59e0b;
+    }
+
+    .almacen-chip.secundario {
+      background: rgba(14, 165, 233, 0.12);
+      border-color: rgba(14, 165, 233, 0.3);
+      color: #0ea5e9;
+    }
+
+    .almacen-chip.predespacho {
+      background: rgba(100, 116, 139, 0.15);
+      border-color: rgba(100, 116, 139, 0.3);
+      color: #94a3b8;
+    }
+
+    .almacen-chip.fallback {
+      background: rgba(0, 208, 132, 0.18);
+      border-color: rgba(0, 208, 132, 0.45);
+      color: var(--g360-accent);
+      font-weight: 700;
+    }
+
+    .almacen-chip.qc {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.45);
+      color: #f59e0b;
+      font-weight: 700;
+    }
+
+    .almacen-chip.terciario {
+      background: rgba(148, 163, 184, 0.1);
+      border-color: rgba(148, 163, 184, 0.3);
+      color: #94a3b8;
+    }
+
+    .almacen-chip.traslado {
+      background: rgba(56, 189, 248, 0.08);
+      border: 1px dashed rgba(56, 189, 248, 0.45);
+      color: #38bdf8;
+    }
+
+    .almacen-chip.exportacion {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.4);
+      color: #a78bfa;
     }
 
     .almacen-chip.sin-venta {
@@ -675,9 +728,6 @@ export class StockSearch extends LitElement {
             </div>
           `)}
         ` : this.results.length > 0 ? this.results.map(({ p, matches }, idx) => {
-          const stock = p.stock || 0;
-          const bx = calculateBx(stock, p.un_bx);
-          const stockClass = esPorUnidades(p) ? (stock === 0 ? 'cero' : stock < 10 ? 'bajo' : 'alto') : bx === 0 ? 'cero' : bx < 10 ? 'bajo' : 'alto';
           const sinCatalogo = esSinCatalogo(p);
 
           const nombre = this._applyFuseHighlight(p.nombre || '', matches, 'nombre');
@@ -685,13 +735,40 @@ export class StockSearch extends LitElement {
           const linea = this._applyFuseHighlight(p.linea || '', matches, 'linea');
           const categoria = this._applyFuseHighlight(p.categoria || '', matches, 'categoria');
 
-           const almacenesVenta = p.almacenes_venta || [];
+          const almacenesVenta = p.almacenes_venta || [];
+          const vesStock = almacenesVenta.find((a) => a.almacen === ALMACEN_PRINCIPAL)?.disponible || 0;
+          const inspeccionStock = almacenesVenta.find((a) => a.esInspeccion)?.disponible || 0;
+          const secundarioStock = almacenesVenta.find((a) => a.almacen === ALMACEN_SECUNDARIO)?.disponible || 0;
+          const trasladoStock = almacenesVenta.find((a) => a.almacen === ALMACEN_TRASLADO)?.disponible || 0;
+          const predespacho = p.predespacho || 0;
 
-           const almacenesChips = almacenesVenta.map(a => html`
-             <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : ''}">
-               ${a.almacen}: ${a.disponible}
-             </span>
-           `);
+          const bxVes = calculateBx(vesStock, p.un_bx);
+          const stockClass = esPorUnidades(p)
+            ? (vesStock === 0 ? 'cero' : vesStock < 10 ? 'bajo' : 'alto')
+            : bxVes === 0 ? 'cero' : bxVes < 10 ? 'bajo' : 'alto';
+
+          const bxQC = calculateBx(inspeccionStock, p.un_bx);
+          const mostrarQC = bxQC >= 10;
+          const qcLabel = esPorUnidades(p) ? `${inspeccionStock} u` : `${bxQC} bx`;
+          const mostrarFallback129 = vesStock === 0 && secundarioStock > 0;
+          const bxTraslado = calculateBx(trasladoStock, p.un_bx);
+          const mostrarTraslado40 = vesStock === 0 && secundarioStock === 0 && bxTraslado >= 10;
+          const trasladoLabel = esPorUnidades(p) ? `${trasladoStock} u` : `${bxTraslado} bx`;
+
+          const rankAlmacen = (a) => {
+            if (a.almacen === ALMACEN_PRINCIPAL) return 0;
+            if (a.almacen === ALMACEN_SECUNDARIO) return 1;
+            if (a.almacen === ALMACEN_TRASLADO) return 2;
+            if (a.esInspeccion) return 99;
+            return 10;
+          };
+          const almacenesChips = [...almacenesVenta]
+            .sort((x, y) => rankAlmacen(x) - rankAlmacen(y))
+            .map(a => html`
+              <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_SECUNDARIO ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}">
+                ${a.almacen}: ${a.disponible}
+              </span>
+            `);
 
           return html`
             <div
@@ -706,6 +783,10 @@ export class StockSearch extends LitElement {
                 <span class="nombre">${unsafeHTML(nombre)}</span>
                 <span class="linea">${unsafeHTML(linea)}</span>
                  <div class="almacenes-row">
+                   ${mostrarFallback129 ? html`<span class="almacen-chip fallback">Atendible del 129: ${secundarioStock}</span>` : ''}
+                   ${mostrarTraslado40 ? html`<span class="almacen-chip traslado">Trasladable del 40: ${trasladoLabel}</span>` : ''}
+                   ${mostrarQC ? html`<span class="almacen-chip qc">En QC: ${qcLabel} por pasar a VES</span>` : ''}
+                   ${predespacho > 0 ? html`<span class="almacen-chip predespacho">Predespacho: ${predespacho}</span>` : ''}
                    ${almacenesChips.length > 0
                      ? almacenesChips
                      : html`<span class="almacen-chip sin-venta">Sin almacenes de venta</span>`}
@@ -715,8 +796,9 @@ export class StockSearch extends LitElement {
               <div class="result-right">
                 <span class="categoria">${unsafeHTML(categoria)}</span>
                 <div class="stock-info">
-                  <span class="stock-value ${stockClass}">${stock}</span>
-                   <span class="ean">Disponible venta: ${stock} · ${etiquetaStock(p)} | Comprometido: ${p.predespacho || 0}</span>
+                  <span class="stock-label">Disponible VES</span>
+                  <span class="stock-value ${stockClass}">${vesStock}</span>
+                  <span class="ean">${esPorUnidades(p) ? 'Venta por unidades' : etiquetaStock(p, vesStock)}</span>
                 </div>
               </div>
             </div>

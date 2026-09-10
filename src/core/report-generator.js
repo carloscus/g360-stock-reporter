@@ -4,12 +4,12 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.0.0
+ * @version 1.7.0
  */
 
 const ExcelJS = window.ExcelJS;
 
-import { INSPECCION_ALMACEN } from './stock-store.js';
+import { INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
 import { sortByOrden, esPorUnidades, esCatalogo, esSinCatalogo } from './stock-service.js';
 
 const COLORS = {
@@ -25,6 +25,8 @@ const COLORS = {
   yellowDark: 'FFD97706',
   white: 'FFFFFFFF',
   grayText: 'FF64748B',
+  export122: 'FF8B5CF6',
+  export122Dark: 'FF6D28D9',
   lineColors: ['FF3B82F6', 'FF10B981', 'FFF59E0B', 'FFEF4444', 'FF8B5CF6', 'FFEC4899', 'FF06B6D4', 'FFF97316'],
 };
 
@@ -43,34 +45,23 @@ function sheetNameForLinea(linea) {
 }
 
 /**
- * Calcula el stock sin incluir el almacén de inspección (121).
+ * Disponible de venta = disponible del almacén VES (único de venta directa).
+ * Los lotes 129 (Secundario), 40 (Traslado) y 121 (Inspección/QC) son
+ * informativos e independientes: NUNCA se suman al Disponible, porque son
+ * lotes diferentes y el vendedor podría equivocarse.
  * @param {Object} producto - Producto enriquecido con almacenes_venta[]
- * @returns {number} stock disponible sin 121
+ * @returns {number} disponible VES (0 si el SKU no tiene entrada en VES)
  */
-function stockSinInspeccion(producto) {
-  if (!producto.almacenes_venta || producto.almacenes_venta.length === 0) {
-    return producto.stock ?? 0;
-  }
-  return producto.almacenes_venta
-    .filter((a) => a.almacen !== INSPECCION_ALMACEN)
-    .reduce((sum, a) => sum + a.disponible, 0);
-}
-
-/**
- * Calcula el stock con o sin el almacén 121 según el flag.
- * @param {Object} producto - Producto enriquecido
- * @param {boolean} includeInspeccion - Si true, incluye el 121 en el total
- * @returns {number} stock a usar para cálculos
- */
-function getStockParaCalculo(producto, includeInspeccion) {
-  return includeInspeccion ? (producto.stock ?? 0) : stockSinInspeccion(producto);
+function disponibleVES(producto) {
+  return producto.almacenes_venta?.find((a) => a.almacen === ALMACEN_PRINCIPAL)?.disponible ?? 0;
 }
 
 /**
  * Crea la hoja "Resumen" con KPIs, totales por categoría y línea.
  * Migrado de createResumenSheet() en generate-reports-excel.cjs.
+ * Los totales usan SOLO el disponible VES (lotes 129/40/121 nunca suman).
  */
-function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
+function createResumenSheet(ws, productos, autor = null) {
   ws.getColumn('A').width = 22;
   ws.getColumn('B').width = 12;
   ws.getColumn('C').width = 15;
@@ -103,18 +94,18 @@ function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
 
   // ===== KPI CARDS =====
   const totalUnidades = productos.reduce(
-    (acc, p) => acc + getStockParaCalculo(p, includeInspeccion), 0
+    (acc, p) => acc + disponibleVES(p), 0
   );
   const totalCodigos = productos.length;
 
   const productosConStock = productos.filter(
-    (p) => getStockParaCalculo(p, includeInspeccion) > 0
+    (p) => disponibleVES(p) > 0
   );
   const productosSinStock = productos.filter(
-    (p) => getStockParaCalculo(p, includeInspeccion) === 0
+    (p) => disponibleVES(p) === 0
   );
   const productosBajoStock = productos.filter((p) => {
-    const stock = getStockParaCalculo(p, includeInspeccion);
+    const stock = disponibleVES(p);
     const bx = Math.floor(stock / (p.un_bx || 1));
     return bx > 0 && bx < 10;
   });
@@ -206,7 +197,7 @@ function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
   productos.forEach((p) => {
     if (!categorias[p.categoria]) categorias[p.categoria] = { codigos: 0, stock: 0 };
     categorias[p.categoria].codigos++;
-    categorias[p.categoria].stock += getStockParaCalculo(p, includeInspeccion);
+    categorias[p.categoria].stock += disponibleVES(p);
   });
 
   let catRow = catHeaderRow + 1;
@@ -253,7 +244,7 @@ function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
   productos.forEach((p) => {
     if (!lineas[p.linea]) lineas[p.linea] = { codigos: 0, stock: 0 };
     lineas[p.linea].codigos++;
-    lineas[p.linea].stock += getStockParaCalculo(p, includeInspeccion);
+    lineas[p.linea].stock += disponibleVES(p);
   });
 
   let lineaRow = lineaHeaderRow + 1;
@@ -288,7 +279,10 @@ function createResumenSheet(ws, productos, includeInspeccion, autor = null) {
 }
 
 /**
- * Crea la hoja de datos detallados con columnas de stock, cajas, almacenes.
+ * Crea la hoja de datos detallados. "Disponible" = disponible VES exacto.
+ * Las columnas 129 (Secundario), 40 (Traslado) e 121 (Inspección) son
+ * informativas e independientes: visibles solo con el checkbox y nunca
+ * suman al Disponible.
  */
 function createDataSheet(ws, titulo, productos, includeInspeccion) {
   const headers = [
@@ -299,12 +293,16 @@ function createDataSheet(ws, titulo, productos, includeInspeccion) {
     { header: 'Un/Caja', key: 'unBx', width: 10 },
   ];
 
-  // ✅ Columna 121 (Inspección) — SOLO si el checkbox está activado
+  // Columnas informativas e independientes del Disponible, visibles solo
+  // si el checkbox está activado, en orden de jerarquía:
+  // 129 (Secundario) → 40 (Traslado) → 121 (Inspección/QC).
   if (includeInspeccion) {
+    headers.push({ header: '129 (Secundario)', key: 'secundario', width: 16 });
+    headers.push({ header: '40 (Traslado)', key: 'traslado', width: 16 });
     headers.push({ header: '121 (Inspección)', key: 'inspeccion', width: 16 });
   }
 
-  headers.push({ header: 'Disponible', key: 'stock', width: 10 });
+  headers.push({ header: 'Disponible VES', key: 'stock', width: 12 });
   headers.push({ header: 'Cajas', key: 'bx', width: 8 });
   headers.push({ header: 'Estado', key: 'estado', width: 12 });
 
@@ -322,10 +320,10 @@ function createDataSheet(ws, titulo, productos, includeInspeccion) {
   });
 
   productos.forEach((p, index) => {
-    const stockBase = getStockParaCalculo(p, includeInspeccion);
+    const stockBase = disponibleVES(p);
     const bx = Math.floor(stockBase / (p.un_bx || 1));
     const inspeccionStock = p.almacenes_venta?.find((a) => a.esInspeccion)?.disponible ?? 0;
-const estado = getEstado(bx);
+    const estado = getEstado(bx);
 
     const rowData = {
       item: index + 1,
@@ -336,20 +334,20 @@ const estado = getEstado(bx);
     };
 
     if (includeInspeccion) {
+      rowData.secundario = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_SECUNDARIO)?.disponible ?? 0;
+      rowData.traslado = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_TRASLADO)?.disponible ?? 0;
       rowData.inspeccion = inspeccionStock;
     }
 
-    rowData.stock = p.almacenes_venta
-      ? p.almacenes_venta.reduce((sum, a) => sum + a.disponible, 0)
-      : stockBase;
+    rowData.stock = stockBase;
     rowData.bx = esPorUnidades(p) ? 0 : bx;
     rowData.estado = estado.text;
 
     const row = ws.addRow(rowData);
 
-    // Color coding para Stock, Cajas, Estado, Inspección
+    // Color coding para Stock, Cajas, Estado, Secundario, Traslado e Inspección
     const coloredKeys = includeInspeccion
-      ? ['inspeccion', 'stock', 'bx', 'estado']
+      ? ['secundario', 'traslado', 'inspeccion', 'stock', 'bx', 'estado']
       : ['stock', 'bx', 'estado'];
 
     headers.forEach((h, idx) => {
@@ -360,6 +358,64 @@ const estado = getEstado(bx);
         cell.alignment = { horizontal: 'center' };
       }
     });
+  });
+}
+
+/**
+ * Hoja adicional "122 (Exportación)": stock del almacén 122, SOLO informativa
+ * (nunca suma al Disponible VES). Muestra disponible y predespacho por lote.
+ */
+function createSheet122(ws, productos) {
+  const headers = [
+    { header: '#', key: 'item', width: 5 },
+    { header: 'Código', key: 'sku', width: 12 },
+    { header: 'Producto', key: 'nombre', width: 45 },
+    { header: 'Línea', key: 'linea', width: 18 },
+    { header: 'Un/Caja', key: 'unBx', width: 10 },
+    { header: 'Disponible 122', key: 'disponible', width: 14 },
+    { header: 'Predespacho 122', key: 'predespacho', width: 16 },
+  ];
+
+  ws.columns = headers;
+  ws.autoFilter = `A1:${String.fromCharCode(64 + headers.length)}1`;
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  // Header violeta: identifica la hoja como información específica (122)
+  const headerRow = ws.getRow(1);
+  headerRow.height = 32;
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.export122 } };
+    cell.font = { bold: true, size: 11, color: { argb: COLORS.white } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = { bottom: { style: 'medium', color: { argb: COLORS.export122Dark } } };
+  });
+
+  productos.forEach((p, index) => {
+    const entry = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
+
+    const row = ws.addRow({
+      item: index + 1,
+      sku: p.sku,
+      nombre: p.nombre,
+      linea: p.linea,
+      unBx: p.un_bx,
+      disponible: entry?.disponible || 0,
+      predespacho: entry?.predespacho || 0,
+    });
+
+    const cellDisp = row.getCell(6);
+    if ((entry?.disponible || 0) > 0) {
+      cellDisp.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.green } };
+      cellDisp.font = { bold: true, color: { argb: COLORS.greenDark } };
+    }
+    cellDisp.alignment = { horizontal: 'center' };
+
+    const cellPred = row.getCell(7);
+    if ((entry?.predespacho || 0) > 0) {
+      cellPred.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.yellow } };
+      cellPred.font = { bold: true, color: { argb: COLORS.yellowDark } };
+    }
+    cellPred.alignment = { horizontal: 'center' };
   });
 }
 
@@ -375,12 +431,18 @@ const CATEGORIAS_TODOS = ['REPRESENTADAS', 'VINIFAN', 'VINIBALL'];
  *
  * @param {string} categoria        - 'TODOS', 'VINIBALL', 'VINIFAN', 'REPRESENTADAS'
  * @param {Array}  productos        - productos enriquecidos (stock-service.js)
- * @param {Object} options          - { includeInspeccion, includeSecundarios }
+ * @param {Object} options          - { includeInspeccion, includeSecundarios, includeExport122, autor }
+ *                                    includeInspeccion: muestra las columnas
+ *                                    informativas 129 (Secundario), 40 (Traslado)
+ *                                    y 121 (Inspección); no suman al Disponible.
+ *                                    includeExport122: agrega hoja adicional
+ *                                    "122 (Exportación)" con disponible/predespacho
+ *                                    de ese almacén (solo informativa).
  * @param {string} lastUpdated      - timestamp ISO del API
  * @returns {Promise<Blob>}        - Blob listo para descargar
  */
 export async function generateReportXLSX(categoria, productos, options = {}, lastUpdated = '') {
-  const { includeInspeccion = false, includeSecundarios = false, autor = null } = options;
+  const { includeInspeccion = false, includeSecundarios = false, includeExport122 = false, autor = null } = options;
 
   if (!ExcelJS) {
     throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
@@ -406,7 +468,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
 
   // Hoja 1: Resumen (KPIs)
   const wsResumen = wb.addWorksheet('Resumen');
-  createResumenSheet(wsResumen, filtered, includeInspeccion, autor);
+  createResumenSheet(wsResumen, filtered, autor);
 
   // Agrupar por línea y crear una hoja por cada línea
   const lineas = {};
@@ -433,7 +495,53 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
     }
   }
 
+  // Hoja adicional: stock en almacén 122 (Exportación), SOLO informativa
+  // (nunca suma al Disponible VES). Incluye SKUs con disponible o predespacho.
+  if (includeExport122) {
+    const en122 = filtered.filter((p) => {
+      const e = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
+      return (e?.disponible || 0) > 0 || (e?.predespacho || 0) > 0;
+    });
+    if (en122.length > 0) {
+      const ws122 = wb.addWorksheet('122 (Exportación)');
+      createSheet122(ws122, sortByOrden(en122));
+    }
+  }
+
   // Browser: writeBuffer → Blob
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+}
+
+/**
+ * Genera un XLSX de una sola hoja con el stock del almacén 122 (Exportación).
+ * Acceso directo independiente del reporte completo; SOLO informativo.
+ *
+ * @param {Array}  productos - Productos enriquecidos del store
+ * @param {Object} autor     - { nombre, email } opcional
+ * @returns {Promise<Blob>}
+ */
+export async function generateExport122XLSX(productos, autor = null) {
+  if (!ExcelJS) {
+    throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
+  }
+
+  const en122 = productos.filter((p) => {
+    const e = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
+    return (e?.disponible || 0) > 0 || (e?.predespacho || 0) > 0;
+  });
+
+  const wb = new ExcelJS.Workbook();
+  wb.properties.title = 'StockPulse 122 (Exportación)';
+  wb.properties.created = new Date();
+  wb.creator = autor ? `${autor.nombre}${autor.email ? ` <${autor.email}>` : ''}` : 'g360-stock-reporter';
+  wb.lastModifiedBy = 'g360-stock-reporter';
+
+  const ws = wb.addWorksheet('122 (Exportación)');
+  createSheet122(ws, sortByOrden(en122));
+
   const buffer = await wb.xlsx.writeBuffer();
   return new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -499,7 +607,7 @@ export async function generateEstadoXLSX(tipo, productos) {
   const ws = wb.addWorksheet(labels[tipo]);
 
   // Definir columnas primero: ExcelJS crea la fila 1 (header) desde `header`.
-  const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Disponible venta', 'Estado'];
+  const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Disponible VES', 'Estado'];
   const widths = [14, 40, 20, 18, 10, 16, 12];
   ws.columns = headers.map((h, i) => ({ header: h, key: `c${i}`, width: widths[i] }));
 

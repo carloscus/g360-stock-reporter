@@ -3,7 +3,7 @@
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -23,6 +23,7 @@ export class PulsoForm extends LitElement {
     showModal: { type: Boolean },
     includeInspeccion: { type: Boolean },
     includeSecundarios: { type: Boolean },
+    includeExport122: { type: Boolean },
     stockData: { type: Object },
   };
 
@@ -397,6 +398,7 @@ export class PulsoForm extends LitElement {
     this.showModal = false;
     this.includeInspeccion = false;
     this.includeSecundarios = false;
+    this.includeExport122 = false;
     this.stockData = null;
     this._bloqueoTimer = null;
   }
@@ -489,6 +491,7 @@ export class PulsoForm extends LitElement {
     this.categoria = 'TODOS';
     this.includeInspeccion = false;
     this.includeSecundarios = false;
+    this.includeExport122 = false;
     this._resetearIntentos();
   }
 
@@ -506,6 +509,7 @@ const blob = await generateReportXLSX(
           {
             includeInspeccion: this.includeInspeccion,
             includeSecundarios: this.includeSecundarios,
+            includeExport122: this.includeExport122,
             autor: { nombre: this.nombre, email: this.email },
           },
           lastUpdated,
@@ -554,7 +558,8 @@ const blob = await generateReportXLSX(
           <li>Ingresa tu correo corporativo (@cipsa.com.pe) y nombre</li>
           <li>Selecciona el tipo de reporte</li>
           <li>Presiona "Real Time" para generar → DESCARGAR AHORA</li>
-          <li>Opcional: activa "Incluir almacén 121 (Inspección)" para stock transitorio</li>
+          <li>Opcional: activa "Mostrar columnas 129 (Secundario), 40 (Traslado) y 121 (Inspección)" para ver ese stock como información independiente del disponible</li>
+          <li>Opcional: activa "Incluir hoja 122 (Exportación)" para una hoja adicional con el disponible/predespacho de ese almacén</li>
           <li>Opcional: activa "Incluir SKUs fuera de catálogo" para exportar esos ítems en una hoja adicional</li>
         </ol>
       </div>
@@ -643,7 +648,7 @@ const blob = await generateReportXLSX(
               @change=${(e) => this.includeInspeccion = e.target.checked}
               @click=${(e) => e.stopPropagation()}
             />
-            <label>Incluir almacén 121 (Inspección)</label>
+            <label>Mostrar columnas 129 (Secundario), 40 (Traslado) y 121 (Inspección)</label>
           </div>
           <div class="checkbox-row ${this.includeSecundarios ? 'checked' : ''}" @click=${() => this.includeSecundarios = !this.includeSecundarios}>
             <input
@@ -653,6 +658,15 @@ const blob = await generateReportXLSX(
               @click=${(e) => e.stopPropagation()}
             />
             <label>Incluir SKUs fuera de catálogo (hoja adicional)</label>
+          </div>
+          <div class="checkbox-row ${this.includeExport122 ? 'checked' : ''}" @click=${() => this.includeExport122 = !this.includeExport122}>
+            <input
+              type="checkbox"
+              .checked=${this.includeExport122}
+              @change=${(e) => this.includeExport122 = e.target.checked}
+              @click=${(e) => e.stopPropagation()}
+            />
+            <label>Incluir hoja 122 (Exportación)</label>
           </div>
         </div>
 

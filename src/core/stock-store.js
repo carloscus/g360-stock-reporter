@@ -11,10 +11,14 @@
  * Flujo de carga: memoria → sessionStorage → localStorage → API
  * Flujo de guardado: API → localStorage → sessionStorage → memoria
  * @author @carloscus
- * @version 3.0.0
+ * @version 3.2.0
  */
 
 export const INSPECCION_ALMACEN = '121';
+export const ALMACEN_SECUNDARIO = '129';
+export const ALMACEN_TRASLADO = '40';
+export const ALMACEN_EXPORTACION = '122';
+export const ALMACEN_PRINCIPAL = 'VES';
 
 const KEYS = {
   session: 'g360_stock_data_v1',
