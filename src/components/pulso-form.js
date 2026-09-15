@@ -3,7 +3,7 @@
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -24,6 +24,7 @@ export class PulsoForm extends LitElement {
     includeInspeccion: { type: Boolean },
     includeSecundarios: { type: Boolean },
     includeExport122: { type: Boolean },
+    showGuide: { type: Boolean },
     stockData: { type: Object },
   };
 
@@ -31,6 +32,40 @@ export class PulsoForm extends LitElement {
     :host {
       display: block;
       padding: 16px;
+    }
+
+    .guide-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--g360-surface);
+      border: 1px solid var(--g360-border);
+      border-radius: 12px;
+      color: var(--g360-text);
+      font-size: var(--g360-size-sm);
+      font-weight: var(--g360-weight-semibold);
+      cursor: pointer;
+      font-family: inherit;
+      margin-bottom: 12px;
+      transition: border-color var(--g360-transition);
+      box-sizing: border-box;
+    }
+
+    .guide-toggle:hover {
+      border-color: var(--g360-accent);
+    }
+
+    .guide-toggle .chev {
+      margin-left: auto;
+      color: var(--g360-muted);
+      transition: transform 0.2s ease;
+      font-size: 12px;
+    }
+
+    .guide-toggle.open .chev {
+      transform: rotate(180deg);
     }
 
     .guide {
@@ -233,10 +268,10 @@ export class PulsoForm extends LitElement {
       to { transform: rotate(360deg); }
     }
 
-    /* Checkbox toggle for almacén 121 */
+    /* Checkbox toggle para opciones del reporte */
     .checkbox-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       padding: 10px 14px;
       background: var(--g360-bg);
@@ -256,6 +291,8 @@ export class PulsoForm extends LitElement {
       height: 16px;
       cursor: pointer;
       accent-color: var(--g360-accent);
+      flex-shrink: 0;
+      margin-top: 1px;
     }
 
     .checkbox-row label {
@@ -263,7 +300,10 @@ export class PulsoForm extends LitElement {
       font-weight: 600;
       color: var(--g360-text);
       cursor: pointer;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: break-word;
+      line-height: 1.45;
+      min-width: 0;
     }
 
     .checkbox-row input:checked + label,
@@ -402,6 +442,11 @@ export class PulsoForm extends LitElement {
     this.stockData = null;
     this._bloqueoTimer = null;
     this._cargarSolicitante();
+    try {
+      this.showGuide = localStorage.getItem('g360_guide_v1') !== '0';
+    } catch {
+      this.showGuide = true;
+    }
   }
 
   _validateEmail(email) {
@@ -492,6 +537,13 @@ export class PulsoForm extends LitElement {
     this.categoria = cat;
   }
 
+  _toggleGuide() {
+    this.showGuide = !this.showGuide;
+    try {
+      localStorage.setItem('g360_guide_v1', this.showGuide ? '1' : '0');
+    } catch { /* almacenamiento no disponible */ }
+  }
+
   _handleSubmit(e) {
     e.preventDefault();
 
@@ -572,6 +624,21 @@ const blob = await generateReportXLSX(
     }
 
     return html`
+      <button
+        type="button"
+        class="guide-toggle ${this.showGuide ? 'open' : ''}"
+        @click=${this._toggleGuide}
+        aria-expanded=${this.showGuide ? 'true' : 'false'}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        Instrucciones
+        <span class="chev" aria-hidden="true">▾</span>
+      </button>
+      ${this.showGuide ? html`
       <div class="guide">
         <div class="guide-title">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -590,6 +657,7 @@ const blob = await generateReportXLSX(
           <li>Opcional: activa "Incluir SKUs fuera de catálogo" para exportar esos ítems en una hoja adicional</li>
         </ol>
       </div>
+      ` : ''}
 
       <form @submit=${this._handleSubmit}>
         <div class="form-card">

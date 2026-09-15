@@ -14,14 +14,6 @@
     <meta name="msapplication-TileColor" content="#00d084" />
     <meta name="msapplication-tap-highlight" content="no" />
     <title>StockPulse — CIPSA</title>
-    <style>
-      /* La firma es fija: en móvil se eleva sobre el bottom-nav para no taparlo */
-      @media (max-width: 767px) {
-        g360-signature {
-          bottom: calc(92px + env(safe-area-inset-bottom)) !important;
-        }
-      }
-    </style>
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -35,6 +27,5 @@
   </head>
   <body>
     <app-root></app-root>
-    <g360-signature mode="powered" version="1.0.0" style="position: fixed; bottom: 16px; right: 16px; z-index: 100;"></g360-signature>
   </body>
 </html>

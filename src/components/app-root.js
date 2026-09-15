@@ -4,7 +4,7 @@
  *              Carga datos una sola vez y los distribuye a los paneles via store.
  *              Un solo activador para la barra de búsqueda (nav item "Buscar").
  * @author @carloscus
- * @version 3.1.0
+ * @version 3.2.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -226,8 +226,15 @@ export class AppRoot extends LitElement {
     @keyframes spin { to { transform: rotate(360deg); } }
 
     main {
-      padding: 0 0 calc(88px + env(safe-area-inset-bottom)) 0;
+      padding: 0 0 16px 0;
       flex: 1;
+    }
+
+    /* === FOOTER (firma en flujo: nunca superpone contenido) === */
+    .app-footer {
+      display: flex;
+      justify-content: center;
+      padding: 12px 16px calc(104px + env(safe-area-inset-bottom));
     }
 
     /* === MOBILE BOTTOM-NAV === */
@@ -284,6 +291,9 @@ export class AppRoot extends LitElement {
       text-transform: uppercase;
       letter-spacing: 0.5px;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
     }
 
     .nav-badge {
@@ -475,6 +485,10 @@ export class AppRoot extends LitElement {
 
       .bottom-nav {
         display: none;
+      }
+
+      .app-footer {
+        padding: 12px 16px 24px;
       }
 
       main {
@@ -809,6 +823,10 @@ export class AppRoot extends LitElement {
           ` : ''}
 
           <main>${this._renderActivePanel()}</main>
+
+          <footer class="app-footer">
+            <g360-signature mode="powered" version="1.0.0"></g360-signature>
+          </footer>
 
           <nav class="bottom-nav" aria-label="Navegación inferior">
             ${NAV_ITEMS.map((item) => this._renderNavItem(item))}
