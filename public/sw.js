@@ -2,14 +2,13 @@
  * @file sw.js
  * @description Service Worker para StockPulse CIPSA
  *              Cache estático + localStorage como persistencia de datos.
- *              Estrategias: cache-first (assets), network-first (API),
- *              localStorage-sync para datos de stock.
- * @version 2.0.0
+ *              Estrategias: cache-first (assets con hash), network-first (HTML).
+ *              El API vive en otro origen: el SW no lo intercepta ni duplica
+ *              sus requests (el polling lo orquesta app-root con probes ~1 KB).
+ * @version 2.1.0
  */
 
-const CACHE_NAME = 'stockpulse-v4';
-const DATA_CACHE = 'stockpulse-data-v4';
-const STOCK_READ_API_KEY = 'cipsa2026';
+const CACHE_NAME = 'stockpulse-v5';
 
 const STATIC_ASSETS = [
   '/g360-stock-reporter/',
@@ -26,21 +25,23 @@ const STATIC_ASSETS = [
   '/g360-stock-reporter/manifest.json',
 ];
 
-// Instalación — precache estáticos
+// Instalación — precache estáticos (tolerante: un 404 no tumba el install)
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.all(STATIC_ASSETS.map((url) => cache.add(url).catch(() => {})))
+    )
   );
   self.skipWaiting();
 });
 
-// Activación — limpiar caches antiguos y controlar los clients de una vez
+// Activación — limpiar caches antiguos (incluye v4 y data legacy) y controlar los clients de una vez
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => k !== CACHE_NAME && k !== DATA_CACHE)
+          .filter((k) => k !== CACHE_NAME)
           .map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
@@ -52,15 +53,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Solo interceptar requests del mismo origen
+  // Solo interceptar requests del mismo origen (el API es cross-origin
+  // y lo gestiona app-root: no duplicar sus requests aquí)
   if (url.origin !== self.location.origin) return;
-
-  // API del stock → network-first con localStorage sync
-  if (url.pathname.includes('/api/')) {
-    event.respondWith(networkFirst(request, CACHE_NAME));
-    syncToLocalStorage(request.url);
-    return;
-  }
 
   // Assets estáticos → cache-first
   if (url.pathname.startsWith('/g360-stock-reporter/assets/') ||
@@ -104,20 +99,6 @@ async function networkFirst(request, cacheName) {
   }
 }
 
-// Sincroniza la respuesta de la API a localStorage del SW
-async function syncToLocalStorage(url) {
-  try {
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      const client = await self.clients.get(self.windowClient?.id);
-      if (client) {
-        client.postMessage({ type: 'STOCK_SYNC', data });
-      }
-    }
-  } catch { /* noop */ }
-}
-
 // Mensajes del cliente (página) al SW
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') {
@@ -125,21 +106,5 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Notificación de nueva versión
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-stock') {
-    event.waitUntil(
-      fetch('https://g360-stock-api.onrender.com/api/v1/stock', {
-        headers: { 'X-API-Key': STOCK_READ_API_KEY },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          const cache = caches.open(DATA_CACHE);
-          // Se sincroniza vía message al cliente
-        })
-        .catch(() => {})
-    );
-  }
-});
 
 

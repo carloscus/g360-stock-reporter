@@ -35,7 +35,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  CAPA 1: API en vivo (onrender)                                 │
-│  → Datos frescos, 7 almacenes, predespacho, inspección (121)    │
+│  → Datos frescos, 8 almacenes, predespacho, inspección (121)    │
 │  → Tiempo: ~2-3s, requiere internet                             │
 │  → Lectura protegida con clave de alcance reducido              │
 │    (operaciones administrativas permanecen separadas)            │
@@ -90,12 +90,13 @@ src/
 │   ├── pulso-form.js      # Formulario + modal de descarga XLSX
 │   ├── estado-panel.js    # Dashboard KPIs + categorías por estado
 │   ├── stock-alerts.js    # Lista filtrada de alertas
-│   ├── stock-search.js    # Búsqueda fuzzy con Fuse.js
+│   ├── stock-search.js    # Búsqueda fuzzy multi-término (Fuse.js, sin tildes)
+│   ├── almacen-legend.js  # Leyenda de colores de almacenes (compartida)
 │   └── sin-catalogo-panel.js  # Ítems fuera del catálogo maestro
 ├── core/
 │   ├── stock-store.js     # Store centralizado (pub/sub + 3 capas cache)
 │   ├── stock-service.js   # Carga de datos con fallback a localStorage
-│   ├── report-generator.js # Generación XLSX en browser (ExcelJS)
+│   ├── report-generator.js # Generación XLSX en browser (ExcelJS, jerarquía VES/129/40/121/122)
 │   └── skill.json         # Configuración del skill G360
 ├── styles/
 │   └── main.css           # Variables G360, tema dark/light
@@ -128,11 +129,36 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
   revisión granular; no inflan el total de cajas.
 - **un_bx 0 / 1 o ausente** → se vende por unidad: se muestra `N u` (unidades) y el
   SKU aporta 0 al total de cajas, evitando inflar el volumen.
-- **Estado del SKU**: `AGOTADO` si `bx === 0`, `BAJO` si `1 ≤ bx < 10`, `OK` en otro caso.
-- **Disponible para venta**: el dashboard suma únicamente `disponible` de almacenes con tipo `venta`.
-  `predespacho` se muestra como comprometido y `stock` representa el total físico (`disponible + predespacho`).
+- **Estado del SKU** (sobre cajas del disponible VES): `AGOTADO` si `bx === 0`,
+  `BAJO` si `1 ≤ bx < 10`, `OK` en otro caso.
+- **Disponible para venta = VES exacto**: el único almacén de venta directa. Los lotes
+  129/40/121/122 son informativos y **nunca se suman** (son lotes diferentes).
+  `stockFisico` conserva el total físico en almacenes de venta para el valor/peso
+  de inventario (KPIs).
 - **Catálogo maestro**: un SKU pertenece al catálogo cuando tiene `estado_linea`
   definido; los demás van al panel "Sin Catálogo".
+
+## Jerarquía de almacenes
+
+| Almacén | Rol | Dónde se ve |
+|---------|-----|-------------|
+| **VES** | Venta directa (disponible principal) | Número principal, columna "Disponible VES", KPIs, estados |
+| **129** | Secundario · atendible si VES = 0 | Badge "Atendible del 129", columna informativa |
+| **40** | Traslado · solo cantidad alta (≥10 bx) | Badge "Trasladable del 40", columna informativa |
+| **121** | Inspección/QC · lote por pasar a VES | Badge "En QC" (≥10 bx), columna informativa |
+| **122** | Exportación · solo informativo | Hoja "122 (Exportación)", chip violeta |
+
+- **Buscador**: número = VES exacto; badges de predespacho y fallbacks (129/40/QC);
+  chips por almacén con color por rol + leyenda colapsable compartida
+  (`almacen-legend.js`); búsqueda multi-término AND insensible a tildes
+  (`ignoreDiacritics`); link compartido `?q=SKU` abre la búsqueda ya filtrada.
+- **XLSX**: "Disponible VES" + columnas informativas 129/40/121 (checkbox) + hoja
+  adicional "122 (Exportación)" con disponible/predespacho (checkbox propio o
+  descarga directa desde el menú Exportar del dashboard).
+- **Formulario**: el solicitante se recuerda en el equipo (localStorage) con prefill;
+  validación `@cipsa.com.pe` y bloqueo por intentos intactos (no es autenticación).
+- **PWA**: banner "Nueva versión → Actualizar" al detectar update del SW; safe-areas
+  para notch/gestos; sin `orientation` forzada; SW sin requests duplicados al API.
 
 ## Scripts
 
@@ -169,7 +195,7 @@ PORT=8000
 
 ## Tech Stack
 
-- **Frontend**: Lit 3.1, Vite 5, ExcelJS, Fuse.js
+- **Frontend**: Lit 3.1, Vite 4, ExcelJS, Fuse.js
 - **PWA**: Service Worker, manifest.json, cache strategies
 - **Backend**: FastAPI, httpx, xlsx (appweb scraper)
 - **Hosting**: GitHub Pages (frontend) + Render (backend)

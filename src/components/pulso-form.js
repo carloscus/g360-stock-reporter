@@ -3,7 +3,7 @@
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.1.0
+ * @version 3.2.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -401,11 +401,36 @@ export class PulsoForm extends LitElement {
     this.includeExport122 = false;
     this.stockData = null;
     this._bloqueoTimer = null;
+    this._cargarSolicitante();
   }
 
   _validateEmail(email) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
     return /@cipsa\.com\.pe$/i.test(email);
+  }
+
+  /**
+   * Solicitante recordado solo en este equipo (localStorage) para no
+   * re-escribir nombre/email en cada reporte. No es autenticación:
+   * la validación @cipsa.com.pe y el bloqueo por intentos se mantienen.
+   */
+  _cargarSolicitante() {
+    try {
+      const raw = localStorage.getItem('g360_solicitante_v1');
+      if (!raw) return;
+      const { nombre = '', email = '' } = JSON.parse(raw);
+      this.nombre = nombre;
+      this.email = email;
+      this.nombreError = '';
+      this.emailError = '';
+      this.isValid = this.nombre.length >= 3 && this._validateEmail(this.email);
+    } catch { /* sin solicitante guardado */ }
+  }
+
+  _guardarSolicitante() {
+    try {
+      localStorage.setItem('g360_solicitante_v1', JSON.stringify({ nombre: this.nombre, email: this.email }));
+    } catch { /* almacenamiento no disponible */ }
   }
 
   _checkBloqueo() {
@@ -492,6 +517,7 @@ export class PulsoForm extends LitElement {
     this.includeInspeccion = false;
     this.includeSecundarios = false;
     this.includeExport122 = false;
+    this._cargarSolicitante();
     this._resetearIntentos();
   }
 
@@ -518,6 +544,7 @@ const blob = await generateReportXLSX(
 
       const filename = generarNombreArchivo(this.categoria);
       downloadBlob(blob, filename);
+      this._guardarSolicitante();
       this._handleCloseModal();
     } catch (error) {
       console.error('[pulso-form] Error generando XLSX:', error);
@@ -624,6 +651,7 @@ const blob = await generateReportXLSX(
               </div>
             ` : ''}
           </div>
+          <div style="font-size:11px;color:var(--g360-muted);margin-top:6px;">🔒 Tus datos se recuerdan solo en este equipo para agilizar tus reportes.</div>
 
           <div class="field">
             <label class="label">Categoría de Interés</label>

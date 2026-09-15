@@ -4,7 +4,7 @@
  *              Carga datos una sola vez y los distribuye a los paneles via store.
  *              Un solo activador para la barra de búsqueda (nav item "Buscar").
  * @author @carloscus
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -92,6 +92,7 @@ export class AppRoot extends LitElement {
     _isWaking: { type: Boolean },
     _isWakingAttempt: { type: Number },
     _isProbing: { type: Boolean },
+    _updateAvailable: { type: Boolean },
   };
 
   static styles = css`
@@ -225,7 +226,7 @@ export class AppRoot extends LitElement {
     @keyframes spin { to { transform: rotate(360deg); } }
 
     main {
-      padding: 0 0 80px 0;
+      padding: 0 0 calc(88px + env(safe-area-inset-bottom)) 0;
       flex: 1;
     }
 
@@ -240,7 +241,7 @@ export class AppRoot extends LitElement {
       backdrop-filter: blur(var(--g360-blur));
       -webkit-backdrop-filter: blur(var(--g360-blur));
       border-top: 1px solid var(--g360-border);
-      padding: 8px 12px 20px;
+      padding: 8px 12px calc(20px + env(safe-area-inset-bottom));
       justify-content: space-around;
       z-index: 40;
       gap: 4px;
@@ -369,7 +370,7 @@ export class AppRoot extends LitElement {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 40px 16px;
+      padding: calc(40px + env(safe-area-inset-top)) 16px 40px;
       animation: g360-fade-in 0.2s ease;
     }
 
@@ -381,6 +382,40 @@ export class AppRoot extends LitElement {
       border-radius: 24px;
       overflow: hidden;
       animation: g360-slide-up 0.3s ease;
+    }
+
+    /* === UPDATE PILL (nueva versión PWA) === */
+    .update-pill {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(100px + env(safe-area-inset-bottom));
+      z-index: 45;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px 10px 16px;
+      border-radius: 999px;
+      background: var(--g360-surface);
+      border: 1px solid var(--g360-accent);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--g360-text);
+      white-space: nowrap;
+      animation: g360-slide-up 0.3s ease;
+    }
+
+    .update-pill button {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 14px;
+      background: var(--g360-accent);
+      color: #06281c;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     /* === DESKTOP >= 1024px === */
@@ -469,6 +504,8 @@ export class AppRoot extends LitElement {
     this._isWaking = false;
     this._isWakingAttempt = 0;
     this._isProbing = false;
+    this._updateAvailable = false;
+    this._pendingQuery = null;
     this._applyTheme();
   }
 
@@ -481,6 +518,12 @@ export class AppRoot extends LitElement {
         ? generateAlerts(catalogados).filter(a => a.type === 'critical').length
         : 0;
       this._updateDataStatus();
+      // Link compartido ?q=SKU: abrir el buscador con ese término al llegar datos
+      if (this._pendingQuery) {
+        const q = this._pendingQuery;
+        this._pendingQuery = null;
+        this._openSearchWith(q);
+      }
     });
 
     // Cargar datos (devuelve cache al instante; refresh se gestiona abajo)
@@ -517,6 +560,17 @@ export class AppRoot extends LitElement {
     };
     document.addEventListener('visibilitychange', this._onVisible);
     window.addEventListener('focus', this._onVisible);
+    this._pollServer();
+
+    // Banner de nueva versión PWA (evento del pwa-register)
+    this._onPwaUpdate = () => { this._updateAvailable = true; };
+    window.addEventListener('pwa-update-available', this._onPwaUpdate);
+
+    // Query ?q= compartida (ej: link de WhatsApp con un SKU)
+    try {
+      const q = new URLSearchParams(window.location.search).get('q');
+      if (q && q.trim()) this._pendingQuery = q.trim();
+    } catch { /* URL sin query */ }
   }
 
   disconnectedCallback() {
@@ -527,6 +581,7 @@ export class AppRoot extends LitElement {
     if (this._keepAliveTimer) clearInterval(this._keepAliveTimer);
     document.removeEventListener('visibilitychange', this._onVisible);
     window.removeEventListener('focus', this._onVisible);
+    window.removeEventListener('pwa-update-available', this._onPwaUpdate);
   }
 
   /**
@@ -551,7 +606,10 @@ export class AppRoot extends LitElement {
         const prev = getMeta()?.revision || '';
         if (probe.fecha_descarga && probe.fecha_descarga !== prev) {
           console.log('[app-root] Reporte nuevo detectado, descargando…');
-          await this._manualRefresh();
+          // Evita duplicar la descarga completa si la carga inicial aún está en vuelo
+          if (this._stockData) {
+            await this._manualRefresh();
+          }
         }
       }
       this._updateDataStatus();
@@ -632,6 +690,18 @@ export class AppRoot extends LitElement {
   _openSearch() {
     this.isSearchOpen = true;
     this.activeTab = 'buscar';
+  }
+
+  _openSearchWith(term) {
+    this._openSearch();
+    // El overlay se renderiza async: inyectar el término cuando exista el componente
+    this.updateComplete.then(() => {
+      const el = this.renderRoot.querySelector('stock-search');
+      if (el && term && term.length >= 2) {
+        el.searchTerm = term;
+        el._search();
+      }
+    });
   }
 
   _closeSearch() {
@@ -753,6 +823,13 @@ export class AppRoot extends LitElement {
                 .stockData=${this._stockData}
               ></stock-search>
             </div>
+          </div>
+        ` : ''}
+
+        ${this._updateAvailable ? html`
+          <div class="update-pill" role="status">
+            <span>⬆ Nueva versión disponible</span>
+            <button @click=${() => window.location.reload()}>Actualizar</button>
           </div>
         ` : ''}
       </div>

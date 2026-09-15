@@ -3,15 +3,16 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.4.0
+ * @version 3.7.0
  */
 
 import { LitElement, html, css } from 'lit';
 import { live } from 'lit/directives/live.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import Fuse from 'fuse.js';
-import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo } from '../core/stock-service.js';
+import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, UMBRAL_BAJO_STOCK } from '../core/stock-service.js';
 import { ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
+import './almacen-legend.js';
 
 export class StockSearch extends LitElement {
   static properties = {
@@ -379,8 +380,15 @@ export class StockSearch extends LitElement {
 
     .filter-row {
       display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
       padding: 0 16px 12px;
       border-bottom: 1px solid var(--g360-border);
+    }
+
+    .filter-row almacen-legend {
+      flex: 1 1 100%;
     }
 
     .filter-chip {
@@ -482,7 +490,7 @@ export class StockSearch extends LitElement {
    *  - Descarta ruido ("sku", "codigo", "busca", artículos).
    *  - Si el resultado es un código (solo dígitos, ej. SKU/EAN) lo une sin
    *    espacios: "cero uno uno cero uno nueve" → "011019".
-   *  - Si es un nombre, conserva espacios para el matching fuzzy de Fuse.
+   *  - Si es un nombre, conserva espacios para el matching por términos de Fuse.
    */
   _normalizarVoz(texto) {
     if (!texto) return '';
@@ -544,6 +552,8 @@ export class StockSearch extends LitElement {
       includeMatches: true,
       ignoreLocation: true,
       minMatchCharLength: 2,
+      // Tildes transparentes: "logica" y "lógica" matchean igual (Fuse 7.x).
+      ignoreDiacritics: true,
     };
     this._fuse = new Fuse(this.stockData.productos, options);
     if (this.searchTerm.length >= 2) this._search();
@@ -596,13 +606,55 @@ export class StockSearch extends LitElement {
     return result;
   }
 
+  /**
+   * Búsqueda multi-término con semántica AND: cada palabra (≥2 letras) debe
+   * matchear en el SKU ("voley folk" encuentra "VOLEY VINIBALL GOMA FOLK").
+   * Intersecta resultados por SKU, promedia scores y fusiona los matches por
+   * key para que el resaltado siga funcionando. Un solo token usa la
+   * búsqueda Fuse directa (comportamiento original).
+   */
+  _multiTermSearch(term) {
+    const tokens = term.replace(/[\s-]+/g, ' ').trim().split(' ').filter((t) => t.length >= 2);
+    if (tokens.length <= 1) {
+      return this._fuse.search(term);
+    }
+    const perSku = new Map();
+    for (const tok of tokens) {
+      for (const res of this._fuse.search(tok)) {
+        const sku = res.item.sku;
+        if (!perSku.has(sku)) {
+          perSku.set(sku, { item: res.item, score: 0, hits: 0, matches: new Map() });
+        }
+        const acc = perSku.get(sku);
+        acc.score += res.score;
+        acc.hits += 1;
+        for (const m of (res.matches || [])) {
+          if (!acc.matches.has(m.key)) acc.matches.set(m.key, []);
+          acc.matches.get(m.key).push(...(m.indices || []));
+        }
+      }
+    }
+    return [...perSku.values()]
+      .filter((a) => a.hits === tokens.length)
+      .map((a) => ({
+        item: a.item,
+        score: a.score / tokens.length,
+        matches: [...a.matches.entries()].map(([key, indices]) => ({ key, indices })),
+      }))
+      .sort((a, b) => a.score - b.score);
+  }
+
   _search() {
     const term = this.searchTerm.trim();
     if (!term || !this._fuse) {
       this.results = [];
       return;
     }
-    let fuseResults = this._fuse.search(term);
+    let fuseResults = this._multiTermSearch(term);
+    if (fuseResults.length === 0) {
+      // Red de seguridad: frase completa (typos fuertes en algún token)
+      fuseResults = this._fuse.search(term);
+    }
     if (this.onlyInStock) {
       fuseResults = fuseResults.filter(res => (res.item.stock || 0) > 0);
     }
@@ -711,6 +763,7 @@ export class StockSearch extends LitElement {
           </svg>
           Solo con stock
         </div>
+        <almacen-legend></almacen-legend>
       </div>
 
       <div class="search-results">
@@ -736,23 +789,23 @@ export class StockSearch extends LitElement {
           const categoria = this._applyFuseHighlight(p.categoria || '', matches, 'categoria');
 
           const almacenesVenta = p.almacenes_venta || [];
-          const vesStock = almacenesVenta.find((a) => a.almacen === ALMACEN_PRINCIPAL)?.disponible || 0;
+          const vesStock = disponibleVES(p);
           const inspeccionStock = almacenesVenta.find((a) => a.esInspeccion)?.disponible || 0;
-          const secundarioStock = almacenesVenta.find((a) => a.almacen === ALMACEN_SECUNDARIO)?.disponible || 0;
-          const trasladoStock = almacenesVenta.find((a) => a.almacen === ALMACEN_TRASLADO)?.disponible || 0;
+          const secundarioStock = stockEnAlmacen(p, ALMACEN_SECUNDARIO);
+          const trasladoStock = stockEnAlmacen(p, ALMACEN_TRASLADO);
           const predespacho = p.predespacho || 0;
 
           const bxVes = calculateBx(vesStock, p.un_bx);
           const stockClass = esPorUnidades(p)
-            ? (vesStock === 0 ? 'cero' : vesStock < 10 ? 'bajo' : 'alto')
-            : bxVes === 0 ? 'cero' : bxVes < 10 ? 'bajo' : 'alto';
+            ? (vesStock === 0 ? 'cero' : vesStock < UMBRAL_BAJO_STOCK ? 'bajo' : 'alto')
+            : bxVes === 0 ? 'cero' : bxVes < UMBRAL_BAJO_STOCK ? 'bajo' : 'alto';
 
           const bxQC = calculateBx(inspeccionStock, p.un_bx);
-          const mostrarQC = bxQC >= 10;
+          const mostrarQC = bxQC >= UMBRAL_BAJO_STOCK;
           const qcLabel = esPorUnidades(p) ? `${inspeccionStock} u` : `${bxQC} bx`;
           const mostrarFallback129 = vesStock === 0 && secundarioStock > 0;
           const bxTraslado = calculateBx(trasladoStock, p.un_bx);
-          const mostrarTraslado40 = vesStock === 0 && secundarioStock === 0 && bxTraslado >= 10;
+          const mostrarTraslado40 = vesStock === 0 && secundarioStock === 0 && bxTraslado >= UMBRAL_BAJO_STOCK;
           const trasladoLabel = esPorUnidades(p) ? `${trasladoStock} u` : `${bxTraslado} bx`;
 
           const rankAlmacen = (a) => {

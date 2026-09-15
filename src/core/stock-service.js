@@ -5,10 +5,10 @@
  *              Usa stock-store con 3 capas: memoria → sessionStorage → localStorage → API.
  *              Sin dependencias de JSON estáticos (enriquecimiento viene del API).
  * @author @carloscus
- * @version 7.2.0
+ * @version 7.3.0
  */
 
-import { saveData, loadData, isStale, getMeta, INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_TRASLADO } from './stock-store.js';
+import { saveData, loadData, isStale, getMeta, INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
 
 const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock';
 // Clave de lectura limitada para la PWA estatica. Nunca usar aqui la clave
@@ -98,7 +98,39 @@ function _calcularStockTotal(almacenesVenta) {
  * Criterio único compartido por dashboard, alertas, buscador y reportes.
  */
 function _calcularStockVES(almacenesVenta) {
-  return almacenesVenta?.find((a) => a.almacen === ALMACEN_PRINCIPAL)?.disponible || 0;
+  return stockEnAlmacen({ almacenes_venta: almacenesVenta }, ALMACEN_PRINCIPAL);
+}
+
+/**
+ * Umbral de cajas para BAJO vs OK. También define "cantidad grande" para los
+ * badges de QC (121) y traslado (40) en el buscador.
+ */
+export const UMBRAL_BAJO_STOCK = 10;
+
+/**
+ * Disponibles puntuales por almacén (por lote, sin sumar entre almacenes).
+ */
+export function stockEnAlmacen(producto, codigo) {
+  return producto?.almacenes_venta?.find((a) => a.almacen === codigo)?.disponible || 0;
+}
+
+export function predespachoEnAlmacen(producto, codigo) {
+  return producto?.almacenes_venta?.find((a) => a.almacen === codigo)?.predespacho || 0;
+}
+
+/**
+ * Disponible de venta = disponible VES. Los lotes 129/40/121/122 nunca suman.
+ */
+export function disponibleVES(producto) {
+  return stockEnAlmacen(producto, ALMACEN_PRINCIPAL);
+}
+
+/**
+ * ¿El SKU tiene movimiento en el almacén 122 (Exportación)?
+ */
+export function tieneStock122(producto) {
+  const e = producto?.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
+  return (e?.disponible || 0) > 0 || (e?.predespacho || 0) > 0;
 }
 
 /**
@@ -196,8 +228,9 @@ function _transformAPIResponse(apiData) {
     const unBx = item.un_bx || 1;
     const bx = Math.floor(stock / unBx);
     // Agotado = no se puede formar una caja completa (o sin unidades);
-    // Bajo = 1-9 cajas; OK = 10+. Mismo criterio que getEstado en el Excel.
-    const estado = bx === 0 ? 'AGOTADO' : bx < 10 ? 'BAJO' : 'OK';
+    // Bajo = 1 a (UMBRAL_BAJO_STOCK-1) cajas; OK = UMBRAL_BAJO_STOCK+.
+    // Mismo criterio que getEstado en el Excel.
+    const estado = bx === 0 ? 'AGOTADO' : bx < UMBRAL_BAJO_STOCK ? 'BAJO' : 'OK';
 
     const producto = {
       sku: item.sku,
@@ -397,7 +430,7 @@ export function generateAlerts(productos, limit = null) {
     if (bx === 0) {
       alerts.push({ sku: p.sku, nombre: p.nombre, linea: p.linea,
         categoria: p.categoria, stock: p.stock ?? 0, bx, un_bx: p.un_bx || 1, type: 'critical' });
-    } else if (bx < 10) {
+    } else if (bx < UMBRAL_BAJO_STOCK) {
       alerts.push({ sku: p.sku, nombre: p.nombre, linea: p.linea,
         categoria: p.categoria, stock: p.stock ?? 0, bx, un_bx: p.un_bx || 1, type: 'warning' });
     }
@@ -414,7 +447,7 @@ export function calculateStats(productos) {
   for (const p of productos) {
     const bx = _getBx(p);
     if (bx === 0) sinStock++;
-    else if (bx < 10) bajoStock++;
+    else if (bx < UMBRAL_BAJO_STOCK) bajoStock++;
     else conStock++
   }
   return { total: productos.length, conStock, bajoStock, sinStock };

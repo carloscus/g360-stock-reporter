@@ -4,12 +4,13 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.2.0
+ * @version 4.4.0
  */
 
 import { LitElement, html, css } from 'lit';
-import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esSinCatalogo } from '../core/stock-service.js';
+import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esSinCatalogo, UMBRAL_BAJO_STOCK, tieneStock122 } from '../core/stock-service.js';
 import { ALMACEN_EXPORTACION } from '../core/stock-store.js';
+import './almacen-legend.js';
 
 export class EstadoPanel extends LitElement {
   static properties = {
@@ -69,6 +70,10 @@ export class EstadoPanel extends LitElement {
 
     .export-wrap {
       position: relative;
+    }
+
+    .legend-row {
+      margin: 4px 0 12px;
     }
 
     .export-menu {
@@ -564,6 +569,9 @@ export class EstadoPanel extends LitElement {
     }
     this.requestUpdate();
   }
+  _normTexto(s) {
+    return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
 
   _getFilteredSkus(categoria) {
     const productos = this.stockData?.productos || [];
@@ -571,15 +579,16 @@ export class EstadoPanel extends LitElement {
     if (this.filter === 'sinStock') {
       filtered = filtered.filter(s => s.bx === 0);
     } else if (this.filter === 'bajoStock') {
-      filtered = filtered.filter(s => s.bx > 0 && s.bx < 10);
+      filtered = filtered.filter(s => s.bx > 0 && s.bx < UMBRAL_BAJO_STOCK);
     } else if (this.filter === 'conStock') {
-      filtered = filtered.filter(s => s.bx >= 10);
+      filtered = filtered.filter(s => s.bx >= UMBRAL_BAJO_STOCK);
     }
-    if (this.query) {
-      const q = this.query.toLowerCase();
+
+    const q = this._normTexto(this.query).trim();
+    if (q) {
       filtered = filtered.filter(s =>
-        s.sku.toLowerCase().includes(q) ||
-        (s.nombre_corto || s.nombre || '').toLowerCase().includes(q)
+        this._normTexto(s.sku).includes(q) ||
+        this._normTexto(s.nombre_corto || s.nombre).includes(q)
       );
     }
     return filtered;
@@ -590,10 +599,7 @@ export class EstadoPanel extends LitElement {
   }
 
   _getExport122Count() {
-    return (this.stockData?.productos || []).filter((p) => {
-      const e = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
-      return (e?.disponible || 0) > 0 || (e?.predespacho || 0) > 0;
-    }).length;
+    return (this.stockData?.productos || []).filter(tieneStock122).length;
   }
 
   async _export122() {
@@ -745,10 +751,18 @@ export class EstadoPanel extends LitElement {
         </select>
       </div>
 
+      <div class="legend-row">
+        <almacen-legend></almacen-legend>
+      </div>
+
       <!-- Categories -->
       ${categorias.map(cat => {
         const skus = this._getFilteredSkus(cat.nombre);
-        const expanded = this._expandedCategories.has(cat.nombre);
+        const searching = (this.query || '').trim().length > 0;
+        // Buscando: auto-expande secciones con coincidencias y oculta las vacías.
+        // Sin búsqueda: respeta el colapsado manual (las secciones inician cerradas).
+        if (searching && skus.length === 0) return '';
+        const expanded = searching || this._expandedCategories.has(cat.nombre);
         return html`
           <div class="section">
             <div class="section-header" @click=${() => this._toggleCategory(cat.nombre)}>
@@ -769,7 +783,7 @@ export class EstadoPanel extends LitElement {
                       <div class="sku-name">${s.nombre}</div>
                     </div>
                     <div class="sku-right">
-                      <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < 10 ? 'bajo' : ''}">${etiquetaStock(s)}</div>
+                      <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < UMBRAL_BAJO_STOCK ? 'bajo' : ''}">${etiquetaStock(s)}</div>
                       <div class="sku-units">Disponible venta: ${s.stock} u</div>
                     </div>
                   </div>
@@ -809,8 +823,15 @@ export class EstadoPanel extends LitElement {
           </div>
         `;
       })}
+      ${(() => {
+        const q = (this.query || '').trim();
+        if (!q) return '';
+        const total = categorias.reduce((n, cat) => n + this._getFilteredSkus(cat.nombre).length, 0);
+        return total === 0 ? html`<div class="empty">Sin resultados para "${q}"</div>` : '';
+      })()}
     `;
   }
 }
 
 customElements.define('estado-panel', EstadoPanel);
+

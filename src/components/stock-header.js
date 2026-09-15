@@ -3,7 +3,7 @@
  * @description Header con logo y toggle de tema.
  *              Busqueda se activa solo desde el nav item "Buscar" en app-root.
  * @author @carloscus
- * @version 2.0.0
+ * @version 2.1.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -24,7 +24,7 @@ export class StockHeader extends LitElement {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: var(--g360-space-md);
+      padding: calc(var(--g360-space-md) + env(safe-area-inset-top)) var(--g360-space-md) var(--g360-space-md);
       background: var(--g360-surface);
       border-bottom: 1px solid var(--g360-border);
       position: sticky;
@@ -164,7 +164,7 @@ export class StockHeader extends LitElement {
 
     @media (min-width: 1024px) {
       .header {
-        padding: var(--g360-space-md) var(--g360-space-lg);
+        padding: calc(var(--g360-space-md) + env(safe-area-inset-top)) var(--g360-space-lg) var(--g360-space-md);
       }
       h1 {
         font-size: 18px;

@@ -26,13 +26,13 @@ if ('serviceWorker' in navigator && location.hostname !== 'localhost' && locatio
         // Verificar actualizaciones cada 30 min
         setInterval(() => registration.update(), 30 * 60 * 1000);
 
-        // Notificar cuando hay nueva versión
+        // Notificar a la app para que muestre el banner de actualización
         registration.addEventListener('updatefound', () => {
           const newSW = registration.installing;
           if (!newSW) return;
           newSW.addEventListener('statechange', () => {
             if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              console.log('[PWA] Nueva versión disponible, refresca para actualizar');
+              window.dispatchEvent(new CustomEvent('pwa-update-available'));
             }
           });
         });

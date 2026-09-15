@@ -4,13 +4,13 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.7.0
+ * @version 1.8.0
  */
 
 const ExcelJS = window.ExcelJS;
 
-import { INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
-import { sortByOrden, esPorUnidades, esCatalogo, esSinCatalogo } from './stock-service.js';
+import { ALMACEN_EXPORTACION } from './stock-store.js';
+import { sortByOrden, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, predespachoEnAlmacen, tieneStock122, UMBRAL_BAJO_STOCK, calculateBx } from './stock-service.js';
 
 const COLORS = {
   primary: 'FF0E7490',
@@ -32,7 +32,7 @@ const COLORS = {
 
 const getEstado = (bx) => {
   if (bx === 0) return { text: '✗ AGOTADO', bgColor: COLORS.red, fontColor: COLORS.redDark };
-  if (bx < 10) return { text: '⚠ BAJO', bgColor: COLORS.yellow, fontColor: COLORS.yellowDark };
+  if (bx < UMBRAL_BAJO_STOCK) return { text: '⚠ BAJO', bgColor: COLORS.yellow, fontColor: COLORS.yellowDark };
   return { text: '✓ OK', bgColor: COLORS.green, fontColor: COLORS.greenDark };
 };
 
@@ -42,18 +42,6 @@ const getEstado = (bx) => {
  */
 function sheetNameForLinea(linea) {
   return (linea || 'Sin Línea').substring(0, 31);
-}
-
-/**
- * Disponible de venta = disponible del almacén VES (único de venta directa).
- * Los lotes 129 (Secundario), 40 (Traslado) y 121 (Inspección/QC) son
- * informativos e independientes: NUNCA se suman al Disponible, porque son
- * lotes diferentes y el vendedor podría equivocarse.
- * @param {Object} producto - Producto enriquecido con almacenes_venta[]
- * @returns {number} disponible VES (0 si el SKU no tiene entrada en VES)
- */
-function disponibleVES(producto) {
-  return producto.almacenes_venta?.find((a) => a.almacen === ALMACEN_PRINCIPAL)?.disponible ?? 0;
 }
 
 /**
@@ -107,7 +95,7 @@ function createResumenSheet(ws, productos, autor = null) {
   const productosBajoStock = productos.filter((p) => {
     const stock = disponibleVES(p);
     const bx = Math.floor(stock / (p.un_bx || 1));
-    return bx > 0 && bx < 10;
+    return bx > 0 && bx < UMBRAL_BAJO_STOCK;
   });
   const productosOk = totalCodigos - productosSinStock.length - productosBajoStock.length;
 
@@ -321,7 +309,7 @@ function createDataSheet(ws, titulo, productos, includeInspeccion) {
 
   productos.forEach((p, index) => {
     const stockBase = disponibleVES(p);
-    const bx = Math.floor(stockBase / (p.un_bx || 1));
+    const bx = calculateBx(stockBase, p.un_bx);
     const inspeccionStock = p.almacenes_venta?.find((a) => a.esInspeccion)?.disponible ?? 0;
     const estado = getEstado(bx);
 
@@ -334,8 +322,8 @@ function createDataSheet(ws, titulo, productos, includeInspeccion) {
     };
 
     if (includeInspeccion) {
-      rowData.secundario = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_SECUNDARIO)?.disponible ?? 0;
-      rowData.traslado = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_TRASLADO)?.disponible ?? 0;
+      rowData.secundario = stockEnAlmacen(p, ALMACEN_SECUNDARIO);
+      rowData.traslado = stockEnAlmacen(p, ALMACEN_TRASLADO);
       rowData.inspeccion = inspeccionStock;
     }
 
@@ -391,7 +379,8 @@ function createSheet122(ws, productos) {
   });
 
   productos.forEach((p, index) => {
-    const entry = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
+    const disp122 = stockEnAlmacen(p, ALMACEN_EXPORTACION);
+    const pred122 = predespachoEnAlmacen(p, ALMACEN_EXPORTACION);
 
     const row = ws.addRow({
       item: index + 1,
@@ -399,19 +388,19 @@ function createSheet122(ws, productos) {
       nombre: p.nombre,
       linea: p.linea,
       unBx: p.un_bx,
-      disponible: entry?.disponible || 0,
-      predespacho: entry?.predespacho || 0,
+      disponible: disp122,
+      predespacho: pred122,
     });
 
     const cellDisp = row.getCell(6);
-    if ((entry?.disponible || 0) > 0) {
+    if (disp122 > 0) {
       cellDisp.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.green } };
       cellDisp.font = { bold: true, color: { argb: COLORS.greenDark } };
     }
     cellDisp.alignment = { horizontal: 'center' };
 
     const cellPred = row.getCell(7);
-    if ((entry?.predespacho || 0) > 0) {
+    if (pred122 > 0) {
       cellPred.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.yellow } };
       cellPred.font = { bold: true, color: { argb: COLORS.yellowDark } };
     }
@@ -498,10 +487,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   // Hoja adicional: stock en almacén 122 (Exportación), SOLO informativa
   // (nunca suma al Disponible VES). Incluye SKUs con disponible o predespacho.
   if (includeExport122) {
-    const en122 = filtered.filter((p) => {
-      const e = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
-      return (e?.disponible || 0) > 0 || (e?.predespacho || 0) > 0;
-    });
+    const en122 = filtered.filter(tieneStock122);
     if (en122.length > 0) {
       const ws122 = wb.addWorksheet('122 (Exportación)');
       createSheet122(ws122, sortByOrden(en122));
@@ -528,10 +514,7 @@ export async function generateExport122XLSX(productos, autor = null) {
     throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
   }
 
-  const en122 = productos.filter((p) => {
-    const e = p.almacenes_venta?.find((a) => a.almacen === ALMACEN_EXPORTACION);
-    return (e?.disponible || 0) > 0 || (e?.predespacho || 0) > 0;
-  });
+  const en122 = productos.filter(tieneStock122);
 
   const wb = new ExcelJS.Workbook();
   wb.properties.title = 'StockPulse 122 (Exportación)';
@@ -590,8 +573,8 @@ export async function generateEstadoXLSX(tipo, productos) {
 
   const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
   const filtros = {
-    conStock: (p) => (p.bx || 0) >= 10,
-    bajoStock: (p) => (p.bx || 0) > 0 && (p.bx || 0) < 10,
+    conStock: (p) => (p.bx || 0) >= UMBRAL_BAJO_STOCK,
+    bajoStock: (p) => (p.bx || 0) > 0 && (p.bx || 0) < UMBRAL_BAJO_STOCK,
     sinStock: (p) => (p.bx || 0) === 0,
     sinCatalogo: esSinCatalogo,
   };
