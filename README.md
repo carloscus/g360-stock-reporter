@@ -156,7 +156,8 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
   adicional "122 (Exportación)" con disponible/predespacho (checkbox propio o
   descarga directa desde el menú Exportar del dashboard).
 - **Formulario**: el solicitante se recuerda en el equipo (localStorage) con prefill;
-  validación `@cipsa.com.pe` y bloqueo por intentos intactos (no es autenticación).
+  validación `@cipsa.com.pe` y bloqueo por intentos intactos (no es autenticación);
+  guía "Instrucciones" colapsable (abierta en primera visita).
 - **PWA**: banner "Nueva versión → Actualizar" al detectar update del SW; safe-areas
   para notch/gestos; sin `orientation` forzada; SW sin requests duplicados al API.
 

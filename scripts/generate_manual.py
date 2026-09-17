@@ -1,9 +1,11 @@
 """
-StockPulse CIPSA - Manual Técnico v5 (Diseño Mejorado)
+StockPulse CIPSA - Manual Técnico v8 (Diseño Mejorado + Screenshots)
 - Transparencias y opacidades
 - Paleta colores corporativos (asiento verde CIPSA)
 - 10 slides concisos
 - Elementos visuales mejorados
+- Soporte para screenshots en assets/screenshots/
+- Contenido: jerarquía VES/129/40/121/122, búsqueda multi-término, PWA
 """
 
 from pptx import Presentation
@@ -47,6 +49,9 @@ C = {
 }
 
 W, H = Inches(13.333), Inches(7.5)
+
+# Path to screenshots directory
+SCREENSHOTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'assets', 'screenshots')
 
 def set_bg(slide, color, alpha=None):
     """Fondo con posible transparencia"""
@@ -220,8 +225,8 @@ def content_slide(prs, title, items, has_number=False, section_num=""):
     
     return slide
 
-def image_slide(prs, title, caption=""):
-    """Slide con placeholder para imagen"""
+def image_slide(prs, title, caption="", screenshot_file=None, screenshot_label=""):
+    """Slide con imagen opcional o placeholder"""
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, C['dark'])
     
@@ -241,36 +246,68 @@ def image_slide(prs, title, caption=""):
     line.fill.fore_color.rgb = C['primary']
     line.line.fill.background()
     
-    # Image placeholder with gradient-like effect
-    ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.6), Inches(1.3), Inches(12.1), Inches(5.5))
-    ph.fill.solid()
-    ph.fill.fore_color.rgb = C['surface']
-    ph.line.color.rgb = C['primary']
-    ph.line.width = Pt(2)
+    # Try to insert screenshot if file exists
+    img_inserted = False
+    if screenshot_file:
+        from pathlib import Path
+        ruta = Path(SCREENSHOTS_DIR) / screenshot_file
+        if ruta.exists():
+            try:
+                from PIL import Image
+                iw, ih = Image.open(ruta).size
+                ir = iw / ih
+                
+                # Frame dimensions for image
+                frame_x, frame_y = 0.6, 1.2
+                frame_w, frame_h = 12.1, 5.8
+                fr = frame_w / frame_h
+                
+                # Calculate fit (contain mode)
+                if ir > fr:
+                    dw, dh = frame_w, frame_w / ir
+                else:
+                    dh, dw = frame_h, frame_h * ir
+                dx = frame_x + (frame_w - dw) / 2
+                dy = frame_y + (frame_h - dh) / 2
+                
+                # Add frame
+                ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(frame_x), Inches(frame_y), Inches(frame_w), Inches(frame_h))
+                ph.fill.solid()
+                ph.fill.fore_color.rgb = C['surface']
+                ph.line.color.rgb = C['primary']
+                ph.line.width = Pt(2)
+                
+                # Add image inside frame
+                slide.shapes.add_picture(str(ruta), Inches(dx), Inches(dy), Inches(dw), Inches(dh))
+                img_inserted = True
+            except ImportError:
+                pass  # Pillow not installed, fall back to placeholder
     
-    # Inner shadow effect (simulated with inset shape)
-    inner = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.7), Inches(1.4), Inches(11.9), Inches(5.3))
-    inner.fill.background()
-    inner.line.fill.background()
-    
-    tf = ph.text_frame
-    tf.word_wrap = True
-    
-    # Icon placeholder
-    icon_box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(5.5), Inches(2.5), Inches(2.333), Inches(1.5))
-    icon_box.fill.solid()
-    icon_box.fill.fore_color.rgb = C['surface_light']
-    icon_box.line.color.rgb = C['border']
-    icon_txt = icon_box.text_frame.paragraphs[0]
-    add_text(icon_txt, "[IMG]", 24, True, C['muted'])
-    icon_txt.alignment = PP_ALIGN.CENTER
-    
-    # Main text
-    txt_box = slide.shapes.add_textbox(Inches(0.6), Inches(4.2), Inches(12.1), Inches(1))
-    add_text(txt_box.text_frame.paragraphs[0], "CAPTURA DE PANTALLA", 24, True, C['text'], PP_ALIGN.CENTER)
-    
-    p2 = txt_box.text_frame.add_paragraph()
-    add_text(p2, caption, 14, False, C['muted'], PP_ALIGN.CENTER)
+    # Fallback placeholder if no image or Pillow not available
+    if not img_inserted:
+        ph = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.6), Inches(1.2), Inches(12.1), Inches(5.8))
+        ph.fill.solid()
+        ph.fill.fore_color.rgb = C['surface']
+        ph.line.color.rgb = C['border']
+        ph.line.dash_style = 4  # Dashed border for placeholder
+        
+        tf = ph.text_frame
+        tf.word_wrap = True
+        
+        # Icon placeholder
+        icon_box = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(5.0), Inches(2.8), Inches(3.0), Inches(1.5))
+        icon_box.fill.solid()
+        icon_box.fill.fore_color.rgb = C['surface_light']
+        icon_box.line.color.rgb = C['border']
+        icon_txt = icon_box.text_frame.paragraphs[0]
+        add_text(icon_txt, "📷", 32, False, C['muted'])
+        icon_txt.alignment = PP_ALIGN.CENTER
+        
+        # Instruction text
+        txt_box = slide.shapes.add_textbox(Inches(0.6), Inches(4.5), Inches(12.1), Inches(1.2))
+        add_text(txt_box.text_frame.paragraphs[0], screenshot_label or "Captura de pantalla", 16, True, C['text'], PP_ALIGN.CENTER)
+        p2 = txt_box.text_frame.add_paragraph()
+        add_text(p2, f"Agregar '{screenshot_file}' en assets/screenshots/", 12, False, C['muted'], PP_ALIGN.CENTER)
     
     return slide
 
@@ -297,8 +334,9 @@ def main():
         "• Campos: SKU, descripción, un_bx, peso, líneas"
     ], has_number=True, section_num="01")
     
-    # 3: FLUJO DE DATOS
-    image_slide(prs, "Flujo de Datos", "Captura del diagrama de arquitectura")
+    # 3: FLUJO DE DATOS (diagrama + screenshot opcional)
+    image_slide(prs, "Flujo de Datos", "Captura del dashboard mostrando KPIs y estado de stock",
+                screenshot_file="dashboard.png", screenshot_label="Vista del Dashboard")
     
     # 4: CATEGORÍAS
     content_slide(prs, "Categorías de Negocio", [
@@ -311,23 +349,28 @@ def main():
         "## Normalización",
         "> Entrada: '0179 - ACCESORIOS' → Código: '79' → VINIFAN",
         "",
-        "## Estados de Stock",
+        "## Estados de Stock (bx sobre disponible VES)",
         "• OK → bx >= 10 cajas | BAJO → 1-9 bx | AGOTADO → bx = 0"
     ], has_number=True, section_num="02")
     
     # 5: FUNCIONALIDADES
     content_slide(prs, "Funcionalidades Principales", [
         "## Dashboard y Estado",
-        "• KPIs: total SKUs, cajas, estados por categoría",
-        "• Lista expandible por categoría con SKUs detallados",
+        "• KPIs y lista expandible por categoría (estados sobre VES)",
+        "• Buscador interno con auto-expand de coincidencias",
         "",
         "## Búsqueda Avanzada",
-        "• Fuse.js: SKU, nombre, keywords, EAN, línea, categoría",
-        "• Búsqueda por voz: normaliza números hablados a SKU",
+        "• Multi-término AND sin tildes + voz + link ?q=SKU",
+        "• SKU, EAN, línea, categoría, keywords",
+        "",
+        "## Jerarquía de Almacenes (lotes no se suman)",
+        "• VES venta · 129 secundario · 40 traslado (≥10 bx)",
+        "• 121 inspección/QC · 122 exportación (informativo)",
+        "• Badges + leyenda de colores por lote",
         "",
         "## Reportes XLSX",
-        "• Completo: Resumen + hojas por línea",
-        "• Estado: ConStock, BajoStock, SinStock, SinCatálogo"
+        "• 'Disponible VES'; columnas 129/40/121 + hoja 122",
+        "• Descarga directa 122; solicitante recordado en equipo"
     ], has_number=True, section_num="03")
     
     # 6: ALERTAS
@@ -385,9 +428,9 @@ def main():
         "• Causa: código de línea no mapeado",
         "• Solución: Agregar a CATEGORIAS en constants.py",
         "",
-        "## Stock 0 con existencias",
-        "• Causa: stock solo en almacén mktd (118, S*)",
-        "• Solución: Verificar tipo de almacén en datos"
+        "## Disponible 0 con existencias",
+        "• Causa: stock solo en lotes no-VES (mktd, 121, 40, 129, 122)",
+        "• Solución: ver chips por almacén en el buscador o columnas del XLSX"
     ], has_number=True, section_num="07")
     
     # 10: CIERRE
