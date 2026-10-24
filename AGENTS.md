@@ -17,7 +17,7 @@ npm run build
 
 - Stack: node (npm)
 - Tests: sin script de test
-- ⚠️ Sin verificación automática real: agregá un script `test` (Node) o tests con `pytest` para que el repo sea verificable.
+- ⚠️ Sin suite de tests: agregá un script `test` con tests de comportamiento.
 
 ## Instalación
 
