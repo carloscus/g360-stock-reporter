@@ -1,3 +1,4 @@
+@import './g360-tokens.css';
 /* ============================================
  * G360 Theme - Estilos principales consolidados
  * Sistema de diseño para proyectos G360
@@ -5,33 +6,10 @@
  * ============================================ */
 
 :root {
-  /* === COLORES G360 === */
-  --g360-bg: #0b1220;
-  --g360-surface: #151e2e;
-  --g360-accent: #00d084;
   --g360-accent-dark: #00796B;
-  --g360-text: #f0f4f8;
-  --g360-muted: #94a3b8;
-  --g360-border: rgba(255, 255, 255, 0.1);
   --g360-danger: #ef4444;
-  --g360-warning: #f59e0b;
-
-  /* === EFECTOS === */
-  --g360-glass: rgba(21, 30, 46, 0.75);
-  --g360-blur: 16px;
-  --g360-rounded: 16px;
   --g360-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --g360-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-
-  /* === ESPACIADO === */
-  --g360-space-xs: 4px;
-  --g360-space-sm: 8px;
-  --g360-space-md: 16px;
-  --g360-space-lg: 24px;
-  --g360-space-xl: 32px;
-
-  /* === TIPOGRAFÍA === */
-  --g360-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   --g360-size-xs: 11px;
   --g360-size-sm: 12px;
   --g360-size-base: 14px;
@@ -39,17 +17,15 @@
   --g360-size-lg: 18px;
   --g360-size-xl: 24px;
   --g360-size-2xl: 28px;
-
   --g360-weight-normal: 400;
   --g360-weight-medium: 500;
   --g360-weight-semibold: 600;
   --g360-weight-bold: 700;
   --g360-weight-extrabold: 800;
-
   /* === BREAKPOINTS (referencia, no válidos en CSS) === */
   /* Mobile: 0 - 767px (default) */
   /* Tablet: 768px - 1023px */
-  /* Desktop: 1024px+ */
+  /* Desktop: 1024px+ */;
 }
 
 /* === ESTILOS BASE === */

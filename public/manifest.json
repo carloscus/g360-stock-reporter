@@ -1,14 +1,18 @@
-﻿{
+{
   "name": "StockPulse CIPSA",
   "short_name": "StockPulse",
   "description": "Consulta de stock y generación de reportes de inventario para CIPSA",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#00d084",
-  "categories": ["business", "productivity", "utilities"],
-    "icons": [
+  "background_color": "#0d1117",
+  "theme_color": "#008254",
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
+  "icons": [
     {
       "src": "./icon-192.png",
       "sizes": "192x192",
@@ -37,7 +41,10 @@
   "lang": "es-PE",
   "dir": "ltr",
   "related_applications": [],
-  "display_override": ["standalone", "browser"],
+  "display_override": [
+    "standalone",
+    "browser"
+  ],
   "protocol_handlers": [],
   "share_target": {
     "action": "./",
