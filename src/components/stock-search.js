@@ -3,14 +3,15 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.7.0
+ * @version 3.9.0
  */
 
 import { LitElement, html, css } from 'lit';
 import { live } from 'lit/directives/live.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import Fuse from 'fuse.js';
-import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, UMBRAL_BAJO_STOCK } from '../core/stock-service.js';
+import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, revisionBadge, UMBRAL_BAJO_STOCK } from '../core/stock-service.js';
+import { construirMensajeStock } from '../core/share.js';
 import { ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
 import './almacen-legend.js';
 
@@ -23,6 +24,10 @@ export class StockSearch extends LitElement {
     selectedIndex: { type: Number },
     isListening: { type: Boolean },
     onlyInStock: { type: Boolean },
+    selectMode: { type: Boolean },
+    autor: { type: String },
+    _selected: { type: Object },
+    _shareMsg: { type: String },
   };
 
   static styles = css`
@@ -129,6 +134,83 @@ export class StockSearch extends LitElement {
     .result-item.active {
       background: rgba(0, 208, 132, 0.1);
       border-color: var(--g360-accent);
+    }
+
+    .result-item.selected {
+      background: rgba(0, 208, 132, 0.14);
+      border-color: var(--g360-accent);
+    }
+
+    .pick {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid var(--g360-border);
+      color: var(--g360-bg);
+      font-size: 11px;
+      font-weight: 800;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .pick.on {
+      background: var(--g360-accent);
+      border-color: var(--g360-accent);
+    }
+
+    .share-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--g360-border);
+      background: var(--g360-glass);
+    }
+
+    .share-count {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--g360-text);
+    }
+
+    .share-msg {
+      font-size: 11px;
+      color: var(--g360-accent);
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .share-btn {
+      padding: 8px 16px;
+      border-radius: 999px;
+      border: none;
+      background: var(--g360-accent);
+      color: #06281c;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .share-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .share-clear {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--g360-border);
+      background: transparent;
+      color: var(--g360-muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     .result-left {
@@ -324,6 +406,33 @@ export class StockSearch extends LitElement {
       white-space: nowrap;
     }
 
+    .descontinuado-badge {
+      display: inline-flex;
+      align-items: center;
+      margin-top: 6px;
+      margin-right: 6px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      font-size: 10px;
+      font-weight: 700;
+      color: #ef4444;
+      white-space: nowrap;
+    }
+
+    .descontinuado-badge.ultimas {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #f59e0b;
+    }
+
+    .descontinuado-badge.info {
+      background: rgba(148, 163, 184, 0.12);
+      border-color: rgba(148, 163, 184, 0.32);
+      color: #94a3b8;
+    }
+
     .no-results {
       text-align: center;
       padding: 40px 20px;
@@ -438,6 +547,10 @@ export class StockSearch extends LitElement {
     this.selectedIndex = -1;
     this.isListening = false;
     this.onlyInStock = false;
+    this.selectMode = false;
+    this.autor = '';
+    this._selected = new Set();
+    this._shareMsg = '';
     this._debounceTimer = null;
     this._fuse = null;
     this._recognition = null;
@@ -585,6 +698,58 @@ export class StockSearch extends LitElement {
     if (this.searchTerm.length >= 2) this._search();
   }
 
+  /** Alterna el modo multiselección para compartir SKUs por WhatsApp/texto. */
+  _toggleSelectMode() {
+    this.selectMode = !this.selectMode;
+    this._shareMsg = '';
+    if (!this.selectMode) this._selected = new Set();
+    this.requestUpdate();
+  }
+
+  _toggleSelect(p) {
+    const next = new Set(this._selected);
+    if (next.has(p.sku)) next.delete(p.sku);
+    else next.add(p.sku);
+    this._selected = next;
+    this._shareMsg = '';
+  }
+
+  _productosSeleccionados() {
+    const porSku = new Map((this.stockData?.productos || []).map((p) => [p.sku, p]));
+    return [...this._selected].map((sku) => porSku.get(sku)).filter(Boolean);
+  }
+
+  async _compartir() {
+    const productos = this._productosSeleccionados();
+    if (!productos.length) return;
+    const texto = construirMensajeStock(productos, this.autor || '');
+    this._shareMsg = '';
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Consulta de stock', text: texto });
+        this._shareMsg = 'Compartido';
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+      }
+    }
+
+    // Fallback: WhatsApp directo; si el navegador bloquea la ventana, copiar.
+    const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    const win = window.open(url, '_blank', 'noopener');
+    if (win) {
+      this._shareMsg = 'Abriendo WhatsApp…';
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(texto);
+      this._shareMsg = 'Copiado al portapapeles';
+    } catch {
+      this._shareMsg = 'No se pudo compartir';
+    }
+  }
+
   _clearSearch() {
     this.searchTerm = '';
     this.results = [];
@@ -688,7 +853,10 @@ export class StockSearch extends LitElement {
       e.preventDefault();
       if (this.isListening && this._recognition) this._recognition.stop();
       const target = this.selectedIndex >= 0 ? this.selectedIndex : 0;
-      if (this.results[target]) this._select(this.results[target].p);
+      if (this.results[target]) {
+        if (this.selectMode) this._toggleSelect(this.results[target].p);
+        else this._select(this.results[target].p);
+      }
     }
   }
 
@@ -710,13 +878,17 @@ export class StockSearch extends LitElement {
           <path d="M21 21l-4.35-4.35"/>
         </svg>
         <input
-          type="text"
+          type="search"
           class="search-input"
           placeholder="Buscar por SKU, nombre, línea o EAN..."
           .value=${live(this.searchTerm)}
           @input=${this._handleInput}
           @keydown=${this._handleKeyDown}
           autofocus
+          spellcheck="false"
+          autocapitalize="off"
+          enterkeyhint="search"
+          aria-label="Buscar producto"
           ?disabled=${this.isLoading}
         />
         ${this.searchTerm ? html`
@@ -763,6 +935,15 @@ export class StockSearch extends LitElement {
           </svg>
           Solo con stock
         </div>
+        <div class="filter-chip ${this.selectMode ? 'active' : ''}" @click=${this._toggleSelectMode}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            ${this.selectMode
+              ? html`<polyline points="20 6 9 17 4 12"/>`
+              : html`<rect x="4" y="4" width="16" height="16" rx="3"/>`
+            }
+          </svg>
+          ${this.selectMode ? 'Seleccionando' : 'Seleccionar'}
+        </div>
         <almacen-legend></almacen-legend>
       </div>
 
@@ -807,6 +988,11 @@ export class StockSearch extends LitElement {
           const bxTraslado = calculateBx(trasladoStock, p.un_bx);
           const mostrarTraslado40 = vesStock === 0 && secundarioStock === 0 && bxTraslado >= UMBRAL_BAJO_STOCK;
           const trasladoLabel = esPorUnidades(p) ? `${trasladoStock} u` : `${bxTraslado} bx`;
+          const revBadge = (() => {
+            const b = revisionBadge(p);
+            // El buscador ya muestra "Predespacho: N"; no duplicar con "Compromiso".
+            return b && b.rev !== 'compromiso' ? b : null;
+          })();
 
           const rankAlmacen = (a) => {
             if (a.almacen === ALMACEN_PRINCIPAL) return 0;
@@ -825,13 +1011,14 @@ export class StockSearch extends LitElement {
 
           return html`
             <div
-              class="result-item ${idx === this.selectedIndex ? 'active' : ''}"
-              @click=${() => this._select(p)}
+              class="result-item ${idx === this.selectedIndex ? 'active' : ''} ${this._selected.has(p.sku) ? 'selected' : ''}"
+              @click=${() => this.selectMode ? this._toggleSelect(p) : this._select(p)}
               @mouseenter=${() => this.selectedIndex = idx}
               role="option"
               aria-selected=${idx === this.selectedIndex}
             >
               <div class="result-left">
+                ${this.selectMode ? html`<span class="pick ${this._selected.has(p.sku) ? 'on' : ''}" aria-hidden="true">${this._selected.has(p.sku) ? '✓' : ''}</span>` : ''}
                 <span class="sku">${unsafeHTML(sku)}</span>
                 <span class="nombre">${unsafeHTML(nombre)}</span>
                 <span class="linea">${unsafeHTML(linea)}</span>
@@ -844,6 +1031,7 @@ export class StockSearch extends LitElement {
                      ? almacenesChips
                      : html`<span class="almacen-chip sin-venta">Sin almacenes de venta</span>`}
                  </div>
+                ${revBadge ? html`<span class="descontinuado-badge ${revBadge.rev === 'descontinuado' ? (vesStock > 0 ? 'ultimas' : '') : 'info'}">${revBadge.rev === 'descontinuado' && vesStock > 0 ? 'Últimas unidades' : revBadge.label}</span>` : ''}
                 ${sinCatalogo ? html`<span class="sin-cat-badge">Sin catálogo</span>` : ''}
               </div>
               <div class="result-right">
@@ -867,6 +1055,27 @@ export class StockSearch extends LitElement {
           </div>
         `}
       </div>
+
+      ${this.selectMode ? html`
+        <div class="share-bar">
+          <span class="share-count">
+            ${this._selected.size} seleccionado${this._selected.size === 1 ? '' : 's'}
+            ${this._shareMsg ? html`<span class="share-msg">· ${this._shareMsg}</span>` : ''}
+          </span>
+          ${this._selected.size > 0 ? html`
+            <button
+              class="share-clear"
+              @click=${() => { this._selected = new Set(); this._shareMsg = ''; this.requestUpdate(); }}
+            >Limpiar</button>
+          ` : ''}
+          <button
+            class="share-btn"
+            ?disabled=${this._selected.size === 0}
+            @click=${this._compartir}
+          >Compartir</button>
+          <button class="share-clear" @click=${this._toggleSelectMode}>Cancelar</button>
+        </div>
+      ` : ''}
     `;
   }
 }

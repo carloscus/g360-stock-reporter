@@ -3,29 +3,25 @@
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.3.0
+ * @version 3.4.0
  */
 
 import { LitElement, html, css } from 'lit';
 
 export class PulsoForm extends LitElement {
   static properties = {
-    nombre: { type: String },
-    email: { type: String },
     categoria: { type: String },
-    isValid: { type: Boolean },
     isGenerating: { type: Boolean },
-    nombreError: { type: String },
-    emailError: { type: String },
-    intentos: { type: Number },
-    bloqueado: { type: Boolean },
-    tiempoBloqueo: { type: Number },
     showModal: { type: Boolean },
     includeInspeccion: { type: Boolean },
     includeSecundarios: { type: Boolean },
     includeExport122: { type: Boolean },
+    incluirNoVigentes: { type: Boolean },
+    linea: { type: String },
     showGuide: { type: Boolean },
     stockData: { type: Object },
+    autor: { type: Object },
+    errorMsg: { type: String },
   };
 
   static styles = css`
@@ -117,6 +113,23 @@ export class PulsoForm extends LitElement {
       letter-spacing: 1px;
       margin-bottom: 8px;
       display: block;
+    }
+
+    .select-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--g360-bg);
+      border: 1px solid var(--g360-border);
+      border-radius: 10px;
+      color: var(--g360-text);
+      font-size: var(--g360-size-base);
+      font-family: inherit;
+      outline: none;
+      margin-bottom: 8px;
+    }
+
+    .select-input:focus {
+      border-color: var(--g360-accent);
     }
 
     .input-wrapper {
@@ -425,23 +438,19 @@ export class PulsoForm extends LitElement {
 
   constructor() {
     super();
-    this.nombre = '';
-    this.email = '';
     this.categoria = 'TODOS';
-    this.isValid = false;
     this.isGenerating = false;
-    this.nombreError = '';
-    this.emailError = '';
-    this.intentos = 0;
-    this.bloqueado = false;
-    this.tiempoBloqueo = 0;
     this.showModal = false;
     this.includeInspeccion = false;
     this.includeSecundarios = false;
     this.includeExport122 = false;
+    this.incluirNoVigentes = false;
+    this.linea = '';
     this.stockData = null;
-    this._bloqueoTimer = null;
-    this._cargarSolicitante();
+    this.autor = null;
+    this.errorMsg = '';
+    this._blob = null;
+    this._filename = '';
     try {
       this.showGuide = localStorage.getItem('g360_guide_v1') !== '0';
     } catch {
@@ -449,92 +458,20 @@ export class PulsoForm extends LitElement {
     }
   }
 
-  _validateEmail(email) {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return false;
-    return /@cipsa\.com\.pe$/i.test(email);
-  }
-
-  /**
-   * Solicitante recordado solo en este equipo (localStorage) para no
-   * re-escribir nombre/email en cada reporte. No es autenticación:
-   * la validación @cipsa.com.pe y el bloqueo por intentos se mantienen.
-   */
-  _cargarSolicitante() {
-    try {
-      const raw = localStorage.getItem('g360_solicitante_v1');
-      if (!raw) return;
-      const { nombre = '', email = '' } = JSON.parse(raw);
-      this.nombre = nombre;
-      this.email = email;
-      this.nombreError = '';
-      this.emailError = '';
-      this.isValid = this.nombre.length >= 3 && this._validateEmail(this.email);
-    } catch { /* sin solicitante guardado */ }
-  }
-
-  _guardarSolicitante() {
-    try {
-      localStorage.setItem('g360_solicitante_v1', JSON.stringify({ nombre: this.nombre, email: this.email }));
-    } catch { /* almacenamiento no disponible */ }
-  }
-
-  _checkBloqueo() {
-    if (this.bloqueado && this.tiempoBloqueo > 0) {
-      this.tiempoBloqueo--;
-      if (this.tiempoBloqueo === 0) {
-        this.bloqueado = false;
-        this.intentos = 0;
-      } else {
-        this._bloqueoTimer = setTimeout(() => this._checkBloqueo(), 1000);
-      }
-    }
-  }
-
-  _incrementarIntentos() {
-    this.intentos++;
-    if (this.intentos >= 3) {
-      this.bloqueado = true;
-      this.tiempoBloqueo = 300;
-      this._checkBloqueo();
-    }
-  }
-
-  _resetearIntentos() {
-    this.intentos = 0;
-    this.bloqueado = false;
-    this.tiempoBloqueo = 0;
-    if (this._bloqueoTimer) {
-      clearTimeout(this._bloqueoTimer);
-    }
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    if (this._bloqueoTimer) clearTimeout(this._bloqueoTimer);
-  }
-
-  _handleInput(e, field) {
-    this[field] = e.target.value;
-
-    if (field === 'nombre') {
-      this.nombreError = this.nombre.length > 0 && this.nombre.length < 3 ? 'Mínimo 3 caracteres' : '';
-    }
-
-    if (field === 'email') {
-      if (!this._validateEmail(this.email)) {
-        this.emailError = this.email.length > 0 && !/@cipsa\.com\.pe$/i.test(this.email)
-          ? 'Solo emails @cipsa.com.pe'
-          : this.email.length > 0 ? 'Email inválido' : '';
-      } else {
-        this.emailError = '';
-      }
-    }
-
-    this.isValid = this.nombre.length >= 3 && this._validateEmail(this.email);
-  }
-
   _handleCategory(cat) {
     this.categoria = cat;
+    this.linea = '';
+  }
+
+  /** Líneas del catálogo para el alcance (filtradas por categoría). */
+  _lineas() {
+    const set = new Set();
+    for (const p of (this.stockData?.productos || [])) {
+      if (!p.estado_linea || !p.linea) continue;
+      if (this.categoria !== 'TODOS' && p.categoria !== this.categoria) continue;
+      set.add(p.linea);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
   }
 
   _toggleGuide() {
@@ -544,66 +481,61 @@ export class PulsoForm extends LitElement {
     } catch { /* almacenamiento no disponible */ }
   }
 
-  _handleSubmit(e) {
+  async _handleSubmit(e) {
     e.preventDefault();
-
-    if (this.bloqueado) {
-      this.emailError = `Demasiados intentos. Bloqueado por ${Math.ceil(this.tiempoBloqueo / 60)} min`;
-      return;
-    }
-
-    if (!this.isValid) return;
+    if (!this.stockData || this.isGenerating) return;
 
     this.isGenerating = true;
-    this._resetearIntentos();
+    this.errorMsg = '';
+    try {
+      const { generateReportXLSX, generarNombreArchivo } = await import('../core/report-generator.js');
+      this._blob = await generateReportXLSX(
+        this.categoria,
+        this.stockData.productos,
+        {
+          includeInspeccion: this.includeInspeccion,
+          includeSecundarios: this.includeSecundarios,
+          includeExport122: this.includeExport122,
+          incluirNoVigentes: this.incluirNoVigentes,
+          linea: this.linea,
+          autor: this.autor || null,
+        },
+        this.stockData.lastUpdated || '',
+      );
+      this._filename = generarNombreArchivo(this.categoria);
+      this.showModal = true;
+    } catch (error) {
+      console.error('[pulso-form] Error generando XLSX:', error);
+      this.errorMsg = 'No se pudo generar el reporte. Revisa la conexión e intenta de nuevo.';
+    } finally {
+      this.isGenerating = false;
+    }
+  }
 
-    this.showModal = true;
-    this.isGenerating = false;
+  _handleDownload() {
+    if (!this._blob || !this._filename) return;
+    import('../core/report-generator.js')
+      .then(({ downloadBlob }) => {
+        downloadBlob(this._blob, this._filename);
+        this._handleCloseModal();
+      })
+      .catch((error) => {
+        console.error('[pulso-form] Error descargando XLSX:', error);
+        this._handleCloseModal();
+        this.errorMsg = 'El navegador bloqueó la descarga. Intenta desde Chrome/Safari.';
+      });
   }
 
   _handleCloseModal() {
     this.showModal = false;
-    this.nombre = '';
-    this.email = '';
+    this._blob = null;
+    this._filename = '';
     this.categoria = 'TODOS';
+    this.linea = '';
     this.includeInspeccion = false;
     this.includeSecundarios = false;
     this.includeExport122 = false;
-    this._cargarSolicitante();
-    this._resetearIntentos();
-  }
-
-  async _handleDownload() {
-    try {
-      const { generateReportXLSX, downloadBlob, generarNombreArchivo } = await import('../core/report-generator.js');
-      const data = this.stockData;
-      const lastUpdated = data.lastUpdated || '';
-
-      this.isGenerating = true;
-
-const blob = await generateReportXLSX(
-          this.categoria,
-          data.productos,
-          {
-            includeInspeccion: this.includeInspeccion,
-            includeSecundarios: this.includeSecundarios,
-            includeExport122: this.includeExport122,
-            autor: { nombre: this.nombre, email: this.email },
-          },
-          lastUpdated,
-        );
-      this.isGenerating = false;
-
-      const filename = generarNombreArchivo(this.categoria);
-      downloadBlob(blob, filename);
-      this._guardarSolicitante();
-      this._handleCloseModal();
-    } catch (error) {
-      console.error('[pulso-form] Error generando XLSX:', error);
-      this._handleCloseModal();
-    } finally {
-      this.isGenerating = false;
-    }
+    this.incluirNoVigentes = false;
   }
 
   render() {
@@ -613,6 +545,7 @@ const blob = await generateReportXLSX(
       { id: 'VINIFAN', nombre: 'VINIFAN', icon: '📁' },
       { id: 'REPRESENTADAS', nombre: 'Representadas', icon: '🌎' },
     ];
+    const lineas = this._lineas();
 
     if (!this.stockData) {
       return html`
@@ -649,9 +582,9 @@ const blob = await generateReportXLSX(
           Cómo Usar
         </div>
         <ol>
-          <li>Ingresa tu correo corporativo (@cipsa.com.pe) y nombre</li>
-          <li>Selecciona el tipo de reporte</li>
-          <li>Presiona "Real Time" para generar → DESCARGAR AHORA</li>
+          <li>Selecciona la categoría del reporte (y una línea si quieres acotarlo)</li>
+          <li>El reporte rápido incluye solo catálogo vigente (sin descontinuados)</li>
+          <li>Presiona "Generar Inventario Real-Time" y luego "DESCARGAR AHORA"</li>
           <li>Opcional: activa "Mostrar columnas 129 (Secundario), 40 (Traslado) y 121 (Inspección)" para ver ese stock como información independiente del disponible</li>
           <li>Opcional: activa "Incluir hoja 122 (Exportación)" para una hoja adicional con el disponible/predespacho de ese almacén</li>
           <li>Opcional: activa "Incluir SKUs fuera de catálogo" para exportar esos ítems en una hoja adicional</li>
@@ -662,66 +595,6 @@ const blob = await generateReportXLSX(
       <form @submit=${this._handleSubmit}>
         <div class="form-card">
           <div class="field">
-            <label class="label">Solicitante</label>
-            <div class="input-wrapper">
-              <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
-              <input
-                type="text"
-                placeholder="Tu nombre completo"
-                class="${this.nombreError ? 'error' : ''}"
-                .value=${this.nombre}
-                @input=${(e) => this._handleInput(e, 'nombre')}
-                ?disabled=${this.bloqueado}
-              />
-            </div>
-            ${this.nombreError ? html`
-              <div class="error-message">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                </svg>
-                ${this.nombreError}
-              </div>
-            ` : ''}
-          </div>
-
-          <div class="field">
-            <label class="label">Email Corporativo</label>
-            <div class="input-wrapper">
-              <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                <polyline points="22,6 12,13 2,6"></polyline>
-              </svg>
-              <input
-                type="email"
-                placeholder="usuario@cipsa.com.pe"
-                class="${this.emailError ? 'error' : ''}"
-                .value=${this.email}
-                @input=${(e) => this._handleInput(e, 'email')}
-                ?disabled=${this.bloqueado}
-              />
-            </div>
-            ${this.emailError ? html`
-              <div class="error-message">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-                </svg>
-                ${this.emailError}
-              </div>
-            ` : this.intentos > 0 && !this.bloqueado ? html`
-              <div class="error-message" style="color: #f59e0b;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-                Intentos restantes: ${3 - this.intentos}
-              </div>
-            ` : ''}
-          </div>
-          <div style="font-size:11px;color:var(--g360-muted);margin-top:6px;">🔒 Tus datos se recuerdan solo en este equipo para agilizar tus reportes.</div>
-
-          <div class="field">
             <label class="label">Categoría de Interés</label>
             <div class="chips">
               ${categorias.map(cat => html`
@@ -729,13 +602,24 @@ const blob = await generateReportXLSX(
                   type="button"
                   class="chip ${this.categoria === cat.id ? 'active' : ''}"
                   @click=${() => this._handleCategory(cat.id)}
-                  ?disabled=${this.bloqueado}
                 >
                   ${cat.icon} ${cat.nombre}
                 </button>
               `)}
             </div>
           </div>
+
+          ${lineas.length > 1 ? html`
+            <div class="field">
+              <label class="label">Alcance por línea</label>
+              <select class="select-input" @change=${(e) => this.linea = e.target.value}>
+                <option value="" ?selected=${!this.linea}>Todas las líneas</option>
+                ${lineas.map((l) => html`
+                  <option value=${l} ?selected=${this.linea === l}>${l}</option>
+                `)}
+              </select>
+            </div>
+          ` : ''}
 
           <div class="checkbox-row ${this.includeInspeccion ? 'checked' : ''}" @click=${() => this.includeInspeccion = !this.includeInspeccion}>
             <input
@@ -764,22 +648,25 @@ const blob = await generateReportXLSX(
             />
             <label>Incluir hoja 122 (Exportación)</label>
           </div>
+          <div class="checkbox-row ${this.incluirNoVigentes ? 'checked' : ''}" @click=${() => this.incluirNoVigentes = !this.incluirNoVigentes}>
+            <input
+              type="checkbox"
+              .checked=${this.incluirNoVigentes}
+              @change=${(e) => this.incluirNoVigentes = e.target.checked}
+              @click=${(e) => e.stopPropagation()}
+            />
+            <label>Incluir descontinuados / no vigentes</label>
+          </div>
         </div>
 
         <button
           type="submit"
-          class="submit-btn ${this.bloqueado ? 'blocked' : ''}"
-          ?disabled=${!this.isValid || this.isGenerating || this.bloqueado}
+          class="submit-btn"
+          ?disabled=${this.isGenerating || !this.stockData}
         >
           ${this.isGenerating ? html`
             <span class="spinner"></span>
             Generando...
-          ` : this.bloqueado ? html`
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-            </svg>
-            Bloqueado (${Math.ceil(this.tiempoBloqueo / 60)} min)
           ` : html`
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -788,6 +675,9 @@ const blob = await generateReportXLSX(
             Generar Inventario Real-Time
           `}
         </button>
+        ${this.errorMsg ? html`
+          <div class="error-message" role="alert">${this.errorMsg}</div>
+        ` : ''}
       </form>
 
       ${this.showModal ? html`
@@ -814,7 +704,7 @@ const blob = await generateReportXLSX(
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
               </svg>
-              <span>StockPulse_${this.categoria}.xlsx</span>
+              <span>${this._filename || 'StockPulse.xlsx'}</span>
             </div>
 
             <button class="modal-download-btn" @click=${this._handleDownload}>

@@ -4,19 +4,25 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.4.0
+ * @version 4.6.0
  */
 
 import { LitElement, html, css } from 'lit';
-import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esSinCatalogo, UMBRAL_BAJO_STOCK, tieneStock122 } from '../core/stock-service.js';
+import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esSinCatalogo, revisionBadge, UMBRAL_BAJO_STOCK, tieneStock122 } from '../core/stock-service.js';
+import { esVigente } from '../core/report-filters.js';
 import { ALMACEN_EXPORTACION } from '../core/stock-store.js';
 import './almacen-legend.js';
+
+// SKUs renderizados por categoría antes de "Mostrar más" (evita jank al buscar
+// en categorías grandes: antes se pintaban todos en cada tecla).
+const LIMITE_SKUS = 100;
 
 export class EstadoPanel extends LitElement {
   static properties = {
     stockData: { type: Object },
     filter: { type: String },
     query: { type: String },
+    mode: { type: String },
     exportOpen: { type: Boolean },
   };
 
@@ -46,6 +52,15 @@ export class EstadoPanel extends LitElement {
       font-size: 18px;
       font-weight: 700;
       color: var(--g360-text);
+    }
+
+    .badge-count {
+      background: var(--g360-danger, #ef4444);
+      color: #fff;
+      border-radius: 999px;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .export-btn {
@@ -382,6 +397,26 @@ export class EstadoPanel extends LitElement {
       padding: 8px 0 0 0;
     }
 
+    .load-more {
+      display: block;
+      width: calc(100% - 32px);
+      margin: 10px 16px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px dashed var(--g360-border-strong, var(--g360-border));
+      background: transparent;
+      color: var(--g360-accent);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .load-more:hover {
+      border-color: var(--g360-accent);
+    }
+
     /* === SKU ITEMS === */
     .sku-item {
       display: flex;
@@ -420,6 +455,34 @@ export class EstadoPanel extends LitElement {
       white-space: normal;
       overflow-wrap: anywhere;
       word-break: break-word;
+    }
+
+    .sku-flag {
+      display: inline-block;
+      margin-top: 2px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .sku-flag.descontinuado {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      color: #ef4444;
+    }
+
+    .sku-flag.ultimas {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #f59e0b;
+    }
+
+    .sku-flag.info {
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      color: #94a3b8;
     }
 
     .sku-right {
@@ -513,8 +576,10 @@ export class EstadoPanel extends LitElement {
     super();
     this.filter = 'all';
     this.query = '';
+    this.mode = 'dashboard';
     this._expandedCategories = new Set();
     this._expandedSkus = new Set();
+    this._limites = new Map();
     this.stats = { total: 0, conStock: 0, bajoStock: 0, sinStock: 0 };
     this.kpis = null;
     this._onDocClick = this._handleDocumentClick.bind(this);
@@ -545,10 +610,14 @@ export class EstadoPanel extends LitElement {
   }
 
   willUpdate(changed) {
+    if (changed.has('mode') && this.mode === 'alertas' && this.filter === 'conStock') {
+      this.filter = 'all';
+    }
     if (changed.has('stockData') && this.stockData) {
-      const productos = this.stockData.productos || [];
-      this.stats = calculateStats(productos);
-      this.kpis = calculateKPIs(productos);
+      // Mismo universo para KPIs y alertas: catálogo vigente (sin descontinuados).
+      const base = this._baseProductos();
+      this.stats = calculateStats(base);
+      this.kpis = calculateKPIs(base);
     }
   }
 
@@ -567,6 +636,93 @@ export class EstadoPanel extends LitElement {
     } else {
       this._expandedSkus.add(sku);
     }
+    this.requestUpdate();
+  }
+
+  _setQuery(e) {
+    this.query = e.target.value;
+    this._limites = new Map(); // reinicia paginado al buscar
+    this._expandedSkus = new Set();
+  }
+
+  _setFilter(e) {
+    this.filter = e.target.value;
+    this._limites = new Map();
+  }
+
+  /** Productos accionables: catálogo maestro y vigentes (sin descontinuados). */
+  _baseProductos() {
+    return (this.stockData?.productos || []).filter((p) => esCatalogo(p) && esVigente(p));
+  }
+
+  /** Alertas = SKUs vigentes con menos de UMBRAL_BAJO_STOCK cajas en VES. */
+  _alertasFiltradas() {
+    let list = this._baseProductos().filter((p) => (p.bx ?? 0) < UMBRAL_BAJO_STOCK);
+    if (this.filter === 'sinStock') list = list.filter((p) => (p.bx ?? 0) === 0);
+    if (this.filter === 'bajoStock') list = list.filter((p) => (p.bx ?? 0) > 0);
+    const q = this._normTexto(this.query).trim();
+    if (q) {
+      list = list.filter((p) =>
+        this._normTexto(p.sku).includes(q) ||
+        this._normTexto(p.nombre_corto || p.nombre).includes(q)
+      );
+    }
+    return list.sort((a, b) => (a.bx ?? 0) - (b.bx ?? 0) || a.sku.localeCompare(b.sku));
+  }
+
+  /** Fila de SKU compartida por el dashboard y la vista de alertas. */
+  _renderSkuRow(s) {
+    const rev = revisionBadge(s);
+    return html`
+      <div class="sku-item" @click=${() => this._toggleSku(s.sku)}>
+        <div class="sku-left">
+          <div class="sku-code">${s.sku}</div>
+          <div class="sku-name">${s.nombre}</div>
+          ${rev ? html`<span class="sku-flag ${rev.rev === 'descontinuado' ? (s.stock > 0 ? 'ultimas' : 'descontinuado') : 'info'}">${rev.rev === 'descontinuado' && s.stock > 0 ? 'Últimas unidades' : rev.label}</span>` : ''}
+        </div>
+        <div class="sku-right">
+          <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < UMBRAL_BAJO_STOCK ? 'bajo' : ''}">${etiquetaStock(s)}</div>
+          <div class="sku-units">Disponible venta: ${s.stock} u</div>
+        </div>
+      </div>
+      ${this._expandedSkus.has(s.sku) ? html`
+        <div class="sku-detail">
+          <div class="detail-row">
+            <span class="detail-label">SKU</span>
+            <span class="detail-value">${s.sku}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Categoría</span>
+            <span class="detail-value">${s.categoria}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Cajas</span>
+            <span class="detail-value">${esPorUnidades(s) ? '— (unidades)' : s.bx}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Disponible venta</span>
+            <span class="detail-value">${s.stock}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Peso</span>
+            <span class="detail-value">${s.peso_kg} kg</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Unidad de medida</span>
+            <span class="detail-value">${s.um || '—'}</span>
+          </div>
+          <div class="almacen-chips">
+            ${(s.almacenes_venta || []).map(a => html`
+              <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}">${a.almacen}: ${a.disponible}</span>
+            `)}
+          </div>
+        </div>
+      ` : ''}
+    `;
+  }
+
+  _mostrarMas(categoria) {
+    this._limites.set(categoria, (this._limites.get(categoria) || LIMITE_SKUS) + LIMITE_SKUS);
     this.requestUpdate();
   }
   _normTexto(s) {
@@ -639,14 +795,74 @@ export class EstadoPanel extends LitElement {
     return this.stats.total ? Math.round(this.stats.conStock / this.stats.total * 100) : 0;
   }
 
+  _renderAlertas() {
+    const alertas = this._alertasFiltradas();
+    const limite = this._limites.get('__alertas') || LIMITE_SKUS;
+    const visibles = alertas.slice(0, limite);
+
+    return html`
+      <div class="header">
+        <h1>🚨 Alertas</h1>
+        <span class="badge-count">${alertas.length}</span>
+      </div>
+
+      <div class="search-box">
+        <input
+          type="search"
+          class="search-input"
+          placeholder="Buscar SKU o nombre..."
+          .value=${this.query}
+          @input=${this._setQuery}
+          spellcheck="false"
+          autocapitalize="off"
+          enterkeyhint="search"
+          aria-label="Buscar alerta"
+        />
+        <select class="filter-select" @change=${this._setFilter}>
+          <option value="all" ?selected=${this.filter === 'all'}>Todos</option>
+          <option value="bajoStock" ?selected=${this.filter === 'bajoStock'}>Bajo Stock</option>
+          <option value="sinStock" ?selected=${this.filter === 'sinStock'}>Sin Stock</option>
+        </select>
+      </div>
+
+      <div class="legend-row">
+        <almacen-legend></almacen-legend>
+      </div>
+
+      <div class="section">
+        <div class="section-body">
+          ${visibles.length === 0 ? html`<div class="empty">No hay alertas con el filtro seleccionado</div>` : ''}
+          ${visibles.map((s) => this._renderSkuRow(s))}
+          ${alertas.length > visibles.length ? html`
+            <button class="load-more" @click=${() => this._mostrarMas('__alertas')}>
+              Mostrar más (${Math.min(LIMITE_SKUS, alertas.length - visibles.length)} de ${alertas.length - visibles.length} restantes)
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }
+
   render() {
     if (!this.stockData || !this.kpis) {
       return html`<div style="text-align:center;padding:60px;color:var(--g360-muted)">Cargando estado...</div>`;
     }
 
+    if (this.mode === 'alertas') return this._renderAlertas();
+
     const categorias = this.kpis.porCategoria || [];
     const totalCajas = this.kpis.cajasTotal || 0;
-    
+
+    // Una sola pasada por categoría: evita refiltrar dos veces por render
+    // (antes se llamaba _getFilteredSkus en el map y otra vez en el contador).
+    const porCategoria = new Map();
+    let totalFiltrados = 0;
+    for (const cat of categorias) {
+      const skus = this._getFilteredSkus(cat.nombre);
+      porCategoria.set(cat.nombre, skus);
+      totalFiltrados += skus.length;
+    }
+    const buscando = (this.query || '').trim().length > 0;
 
     return html`
       <div class="header">
@@ -737,13 +953,17 @@ export class EstadoPanel extends LitElement {
       <!-- Search -->
       <div class="search-box">
         <input
-          type="text"
+          type="search"
           class="search-input"
           placeholder="Buscar SKU o nombre..."
           .value=${this.query}
-          @input=${e => this.query = e.target.value}
+          @input=${this._setQuery}
+          spellcheck="false"
+          autocapitalize="off"
+          enterkeyhint="search"
+          aria-label="Buscar SKU en el estado"
         />
-        <select class="filter-select" @change=${e => this.filter = e.target.value}>
+        <select class="filter-select" @change=${this._setFilter}>
           <option value="all" ?selected=${this.filter === 'all'}>Todos</option>
           <option value="conStock" ?selected=${this.filter === 'conStock'}>Con Stock</option>
           <option value="bajoStock" ?selected=${this.filter === 'bajoStock'}>Bajo Stock</option>
@@ -757,78 +977,38 @@ export class EstadoPanel extends LitElement {
 
       <!-- Categories -->
       ${categorias.map(cat => {
-        const skus = this._getFilteredSkus(cat.nombre);
-        const searching = (this.query || '').trim().length > 0;
+        const skus = porCategoria.get(cat.nombre) || [];
         // Buscando: auto-expande secciones con coincidencias y oculta las vacías.
         // Sin búsqueda: respeta el colapsado manual (las secciones inician cerradas).
-        if (searching && skus.length === 0) return '';
-        const expanded = searching || this._expandedCategories.has(cat.nombre);
+        if (buscando && skus.length === 0) return '';
+        const expanded = buscando || this._expandedCategories.has(cat.nombre);
+        const limite = this._limites.get(cat.nombre) || LIMITE_SKUS;
+        const visibles = expanded ? skus.slice(0, limite) : [];
         return html`
           <div class="section">
             <div class="section-header" @click=${() => this._toggleCategory(cat.nombre)}>
               <div class="section-header-left">
                 <span class="section-toggle ${expanded ? 'open' : ''}">▶</span>
                 <span class="section-name">${cat.nombre}</span>
-                <span class="section-count">${cat.skus} SKUs</span>
+                <span class="section-count">${buscando ? skus.length : cat.skus} SKUs</span>
               </div>
               
             </div>
             ${expanded ? html`
               <div class="section-body">
                 ${skus.length === 0 ? html`<div class="empty">Sin resultados</div>` : ''}
-                ${skus.map(s => html`
-                  <div class="sku-item" @click=${() => this._toggleSku(s.sku)}>
-                    <div class="sku-left">
-                      <div class="sku-code">${s.sku}</div>
-                      <div class="sku-name">${s.nombre}</div>
-                    </div>
-                    <div class="sku-right">
-                      <div class="sku-bx ${s.bx === 0 ? 'cero' : s.bx < UMBRAL_BAJO_STOCK ? 'bajo' : ''}">${etiquetaStock(s)}</div>
-                      <div class="sku-units">Disponible venta: ${s.stock} u</div>
-                    </div>
-                  </div>
-                  ${this._expandedSkus.has(s.sku) ? html`
-                    <div class="sku-detail">
-                      <div class="detail-row">
-                        <span class="detail-label">SKU</span>
-                        <span class="detail-value">${s.sku}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Categoría</span>
-                        <span class="detail-value">${s.categoria}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Cajas</span>
-                        <span class="detail-value">${esPorUnidades(s) ? '— (unidades)' : s.bx}</span>
-                      </div>
-                      <div class="detail-row">
-                        <span class="detail-label">Disponible venta</span>
-                        <span class="detail-value">${s.stock}</span>
-                      </div>
-
-                      <div class="detail-row">
-                        <span class="detail-label">Peso</span>
-                        <span class="detail-value">${s.peso_kg} kg</span>
-                      </div>
-                      <div class="almacen-chips">
-                        ${(s.almacenes_venta || []).map(a => html`
-                          <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}">${a.almacen}: ${a.disponible}</span>
-                        `)}
-                      </div>
-                    </div>
-                  ` : ''}
-                `)}
+                ${visibles.map((s) => this._renderSkuRow(s))}
+                ${skus.length > visibles.length ? html`
+                  <button class="load-more" @click=${() => this._mostrarMas(cat.nombre)}>
+                    Mostrar más (${Math.min(LIMITE_SKUS, skus.length - visibles.length)} de ${skus.length - visibles.length} restantes)
+                  </button>
+                ` : ''}
               </div>
             ` : ''}
           </div>
         `;
       })}
-      ${(() => {
-        const q = (this.query || '').trim();
-        if (!q) return '';
-        const total = categorias.reduce((n, cat) => n + this._getFilteredSkus(cat.nombre).length, 0);
-        return total === 0 ? html`<div class="empty">Sin resultados para "${q}"</div>` : '';
-      })()}
+      ${totalFiltrados === 0 && buscando ? html`<div class="empty">Sin resultados para "${this.query.trim()}"</div>` : ''}
     `;
   }
 }

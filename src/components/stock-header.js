@@ -3,7 +3,7 @@
  * @description Header con logo y toggle de tema.
  *              Busqueda se activa solo desde el nav item "Buscar" en app-root.
  * @author @carloscus
- * @version 2.1.0
+ * @version 2.2.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -13,6 +13,7 @@ export class StockHeader extends LitElement {
     titulo: { type: String },
     theme: { type: String },
     installable: { type: Boolean },
+    usuario: { type: String },
   };
 
   static styles = css`
@@ -145,6 +146,57 @@ export class StockHeader extends LitElement {
       background: rgba(0, 208, 132, 0.1);
     }
 
+    .user-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 12px 0 6px;
+      border-radius: 10px;
+      border: 1px solid var(--g360-border);
+      background: var(--g360-bg);
+      color: var(--g360-text);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+      max-width: 180px;
+    }
+
+    .user-btn:hover {
+      border-color: var(--g360-accent);
+    }
+
+    .user-avatar {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--g360-accent);
+      color: #06281c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .user-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 600px) {
+      .user-name {
+        display: none;
+      }
+      .user-btn {
+        padding: 0 6px;
+      }
+    }
+
     @media (max-width: 600px) {
       .install-btn {
         width: 40px;
@@ -199,6 +251,10 @@ export class StockHeader extends LitElement {
     this.dispatchEvent(new CustomEvent('toggle-theme', { bubbles: true, composed: true }));
   }
 
+  _dispatchLogout() {
+    this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true }));
+  }
+
   render() {
     return html`
       <header class="header" role="banner">
@@ -212,6 +268,17 @@ export class StockHeader extends LitElement {
           </div>
         </div>
         <div class="header-right">
+          ${this.usuario ? html`
+            <button
+              class="user-btn"
+              @click=${this._dispatchLogout}
+              title="Cerrar sesión (${this.usuario})"
+              aria-label="Cerrar sesión de ${this.usuario}"
+            >
+              <span class="user-avatar" aria-hidden="true">${this.usuario.charAt(0).toUpperCase()}</span>
+              <span class="user-name">${this.usuario}</span>
+            </button>
+          ` : ''}
           ${this.installable ? html`
             <button
               class="install-btn"

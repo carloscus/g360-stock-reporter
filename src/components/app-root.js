@@ -4,16 +4,17 @@
  *              Carga datos una sola vez y los distribuye a los paneles via store.
  *              Un solo activador para la barra de búsqueda (nav item "Buscar").
  * @author @carloscus
- * @version 3.2.0
+ * @version 3.5.0
  */
 
 import { LitElement, html, css } from 'lit';
 import { subscribe, isStale, getTimeAgo, getMeta } from '../core/stock-store.js';
 import { generateAlerts, loadStockData, probeStockData, pingHealth, isBusinessHours, formatLimaTime, esCatalogo } from '../core/stock-service.js';
+import { loadSession, clearSession } from '../core/session.js';
 import './stock-header.js';
+import './login-view.js';
 import './pulso-form.js';
 import './estado-panel.js';
-import './stock-alerts.js';
 import './stock-search.js';
 import './sin-catalogo-panel.js';
 
@@ -146,6 +147,11 @@ export class AppRoot extends LitElement {
       animation: status-pulse 1.2s ease-in-out infinite;
     }
 
+    .data-status.sin-catalogo {
+      background: rgba(239, 68, 68, 0.08);
+      color: #ef4444;
+    }
+
     @keyframes status-pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.7; }
@@ -170,6 +176,10 @@ export class AppRoot extends LitElement {
     .data-status.waking .status-dot {
       background: #0ea5e9;
       animation: dot-blink 0.7s ease-in-out infinite;
+    }
+
+    .data-status.sin-catalogo .status-dot {
+      background: #ef4444;
     }
 
     @keyframes dot-blink {
@@ -520,6 +530,15 @@ export class AppRoot extends LitElement {
     this._isProbing = false;
     this._updateAvailable = false;
     this._pendingQuery = null;
+    this._session = loadSession();
+    this._dataStarted = false;
+    this._pendingQuery = null;
+    // Query ?q= compartida (link de WhatsApp con un SKU): se resuelve cuando
+    // llegan los datos (cache o API). Debe leerse antes de suscribirse.
+    try {
+      const q = new URLSearchParams(window.location.search).get('q');
+      if (q && q.trim()) this._pendingQuery = q.trim();
+    } catch { /* URL sin query */ }
     this._applyTheme();
   }
 
@@ -540,29 +559,51 @@ export class AppRoot extends LitElement {
       }
     });
 
+    // Cargar datos y sondeo solo con sesión iniciada
+    if (this._session) this._startData();
+
+    // Banner de nueva versión PWA (evento del pwa-register)
+    this._onPwaUpdate = () => { this._updateAvailable = true; };
+    window.addEventListener('pwa-update-available', this._onPwaUpdate);
+  }
+
+  /**
+   * Arranca la carga de datos y el sondeo del API. Se invoca al iniciar sesión
+   * (y al arrancar si ya había sesión guardada).
+   */
+  _startData() {
+    if (this._dataStarted) return;
+    this._dataStarted = true;
+
     // Cargar datos (devuelve cache al instante; refresh se gestiona abajo)
     loadStockData();
 
     // Ticker de UI: actualiza el contador "hace X" cada minuto sin tocar la red.
-    this._uiTicker = setInterval(() => this._updateDataStatus(), 60 * 1000);
+    if (!this._uiTicker) {
+      this._uiTicker = setInterval(() => this._updateDataStatus(), 60 * 1000);
+    }
 
-    // SONOEO INTELIGENTE cada 10 minutos dentro de la ventana horaria
+    // SONEO INTELIGENTE cada 10 minutos dentro de la ventana horaria
     // (Lun-Sáb 07:00-22:59 Lima; el API solo regenera ahí, cada ~15 min).
     // _pollServer() usa un probe de ~1 KB que además "despierta" el proceso
     // dormido de Render; si el backend regeneró (cambió fecha_descarga),
     // solo entonces descarga el payload completo (~1.3 MB).
-    this._probeTimer = setInterval(() => {
-      this._pollServer();
-    }, 10 * 60 * 1000);
+    if (!this._probeTimer) {
+      this._probeTimer = setInterval(() => {
+        this._pollServer();
+      }, 10 * 60 * 1000);
+    }
 
     // KEEP-ALIVE dentro de la ventana: ping /health (~1 KB) cada 5 min para
     // mantener el proceso de Render despierto (cold start ~30-90s), de modo
     // que el probe de los 10 min y las descargas no paguen el arranque.
-    this._keepAliveTimer = setInterval(() => {
-      if (isBusinessHours() && !this._isWaking) {
-        pingHealth().catch(() => {});
-      }
-    }, 5 * 60 * 1000);
+    if (!this._keepAliveTimer) {
+      this._keepAliveTimer = setInterval(() => {
+        if (isBusinessHours() && !this._isWaking) {
+          pingHealth().catch(() => {});
+        }
+      }, 5 * 60 * 1000);
+    }
     // Ping inmediato al arrancar para "pre-calentar" si el proceso está dormido.
     if (isBusinessHours()) {
       pingHealth().catch(() => {});
@@ -575,16 +616,32 @@ export class AppRoot extends LitElement {
     document.addEventListener('visibilitychange', this._onVisible);
     window.addEventListener('focus', this._onVisible);
     this._pollServer();
+  }
 
-    // Banner de nueva versión PWA (evento del pwa-register)
-    this._onPwaUpdate = () => { this._updateAvailable = true; };
-    window.addEventListener('pwa-update-available', this._onPwaUpdate);
+  /** Detiene el sondeo al cerrar sesión (no borra el cache local). */
+  _stopData() {
+    this._dataStarted = false;
+    if (this._uiTicker) { clearInterval(this._uiTicker); this._uiTicker = null; }
+    if (this._probeTimer) { clearInterval(this._probeTimer); this._probeTimer = null; }
+    if (this._keepAliveTimer) { clearInterval(this._keepAliveTimer); this._keepAliveTimer = null; }
+    if (this._onVisible) {
+      document.removeEventListener('visibilitychange', this._onVisible);
+      window.removeEventListener('focus', this._onVisible);
+    }
+  }
 
-    // Query ?q= compartida (ej: link de WhatsApp con un SKU)
-    try {
-      const q = new URLSearchParams(window.location.search).get('q');
-      if (q && q.trim()) this._pendingQuery = q.trim();
-    } catch { /* URL sin query */ }
+  _onLogin(e) {
+    this._session = { nombre: e.detail.nombre, email: e.detail.email };
+    this.activeTab = 'pulso';
+    this._startData();
+  }
+
+  _onLogout() {
+    clearSession();
+    this._session = null;
+    this.isSearchOpen = false;
+    this.activeTab = 'pulso';
+    this._stopData();
   }
 
   disconnectedCallback() {
@@ -767,18 +824,26 @@ export class AppRoot extends LitElement {
   _renderActivePanel() {
     switch (this.activeTab) {
       case 'estado':
-        return html`<estado-panel .stockData=${this._stockData}></estado-panel>`;
+        return html`<estado-panel .stockData=${this._stockData} mode="dashboard"></estado-panel>`;
       case 'alertas':
-        return html`<stock-alerts .stockData=${this._stockData}></stock-alerts>`;
+        return html`<estado-panel .stockData=${this._stockData} mode="alertas"></estado-panel>`;
       case 'sincatalogo':
         return html`<sin-catalogo-panel .stockData=${this._stockData}></sin-catalogo-panel>`;
       case 'pulso':
       default:
-        return html`<pulso-form .stockData=${this._stockData}></pulso-form>`;
+        return html`<pulso-form .stockData=${this._stockData} .autor=${this._session}></pulso-form>`;
     }
   }
 
   render() {
+    if (!this._session) {
+      return html`<login-view @login=${this._onLogin}></login-view>`;
+    }
+
+    // El backend puede servir sin catálogo (enriquecido=false): un_bx/precio
+    // vienen en 0/1 y los cálculos de cajas quedarían mal. Avisar en la barra.
+    const sinCatalogo = this._stockData?.enriquecido === false;
+
     return html`
       <div class="app-layout">
         <aside class="sidebar" aria-label="Navegación principal">
@@ -790,13 +855,15 @@ export class AppRoot extends LitElement {
         <div class="main-content">
           <stock-header
             @toggle-theme=${this._toggleTheme}
+            @logout=${this._onLogout}
             .theme=${this.theme}
+            .usuario=${this._session.nombre}
           ></stock-header>
 
           <!-- Status bar: frescura del reporte del servidor + copia local + botón fuerza-refresh -->
           ${this._stockData ? html`
             <div
-              class="data-status ${this._isWaking ? 'waking' : this._isStale ? 'stale' : 'fresh'}"
+              class="data-status ${this._isWaking ? 'waking' : this._isStale ? 'stale' : sinCatalogo ? 'sin-catalogo' : 'fresh'}"
               title="${this._isWaking ? 'Servidor despertando (Render en frío)…' : (this._serverDate ? `Reporte del servidor: ${this._serverDateHMS}` : 'Sin reporte')}"
             >
               <span class="status-dot"></span>
@@ -805,7 +872,9 @@ export class AppRoot extends LitElement {
                   ? `⏳ Servidor despertando${this._isWakingAttempt ? ` (intento ${this._isWakingAttempt})` : ''}… reintentando`
                   : this._isStale
                     ? `🔄 Reporte del servidor: hace ${this._dataAge || '>15 min'} — actualizando…`
-                    : `Reporte del sistema: hace ${this._dataAge || '<1min'}`}
+                    : sinCatalogo
+                      ? `⚠ Datos sin catálogo (un_bx/precio incompletos) · hace ${this._dataAge || '<1min'}`
+                      : `Reporte del sistema: hace ${this._dataAge || '<1min'}`}
                 ${this._localCopyAge ? html`
                   <span class="status-sub" title="Cuándo tu copia se descargó (localStorage)">
                     Tu copia local: ${this._localCopyAge} · ${this._localCopyHMS}
@@ -839,6 +908,7 @@ export class AppRoot extends LitElement {
               <stock-search
                 @close=${this._closeSearch}
                 .stockData=${this._stockData}
+                .autor=${this._session?.nombre || ''}
               ></stock-search>
             </div>
           </div>

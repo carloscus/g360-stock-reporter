@@ -164,28 +164,3 @@ export function subscribe(fn) {
   };
 }
 
-// ── Invalidar todo ─────────────────────────────────────────────────
-export function invalidateAll() {
-  _cachedData = null;
-  _meta = null;
-  if (_stalenessTimer) { clearTimeout(_stalenessTimer); _stalenessTimer = null; }
-  try { sessionStorage.removeItem(KEYS.session); } catch { /* noop */ }
-  try { localStorage.removeItem(KEYS.local); } catch { /* noop */ }
-  try { localStorage.removeItem(KEYS.meta); } catch { /* noop */ }
-}
-
-// ── Estado del cache ──────────────────────────────────────────────
-export function getCacheStatus() {
-  const meta = getMeta();
-  const sessionRaw = _safeSessionGet(KEYS.session);
-  const localRaw = _safeGet(KEYS.local);
-
-  return {
-    hasMemory: !!_cachedData,
-    hasSession: !!sessionRaw,
-    hasLocal: !!localRaw,
-    isFresh: meta ? (Date.now() - new Date(meta.lastFetchedAt).getTime() <= FRESHNESS_TTL) : false,
-    meta: meta || null,
-    source: _cachedData?.fuente || 'unknown',
-  };
-}

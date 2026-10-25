@@ -4,13 +4,37 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.8.1
+ * @version 1.10.0
  */
 
-const ExcelJS = window.ExcelJS;
+let ExcelJS = window.ExcelJS;
+let _excelJsPromise = null;
+
+/**
+ * Carga ExcelJS bajo demanda (925 KB / 252 KB gzip) solo al generar un XLSX.
+ * El service worker ya lo precachea, así que también funciona offline.
+ * @returns {Promise<Object>} namespace de ExcelJS
+ */
+async function loadExcelJS() {
+  if (ExcelJS) return ExcelJS;
+  if (!_excelJsPromise) {
+    _excelJsPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `${import.meta.env.BASE_URL}exceljs.min.js`;
+      script.onload = () => {
+        ExcelJS = window.ExcelJS;
+        ExcelJS ? resolve(ExcelJS) : reject(new Error('ExcelJS no expuso window.ExcelJS'));
+      };
+      script.onerror = () => reject(new Error('No se pudo cargar exceljs.min.js'));
+      document.head.appendChild(script);
+    });
+  }
+  return _excelJsPromise;
+}
 
 import { ALMACEN_SECUNDARIO, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
 import { sortByOrden, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, predespachoEnAlmacen, tieneStock122, UMBRAL_BAJO_STOCK, calculateBx } from './stock-service.js';
+import { filtrarReporte, esVigente, CATEGORIAS_TODOS } from './report-filters.js';
 
 const COLORS = {
   primary: 'FF0E7490',
@@ -409,41 +433,40 @@ function createSheet122(ws, productos) {
 }
 
 /**
- * Categorías incluidas cuando se selecciona "TODOS".
- * Representa los tres canales de negocio: Representadas, Vinifan, Viniball.
- */
-const CATEGORIAS_TODOS = ['REPRESENTADAS', 'VINIFAN', 'VINIBALL'];
-
-/**
  * Genera un reporte XLSX completo en memoria (browser).
  * Reemplaza generate-reports-excel.cjs.
+ * Por defecto: reporte rápido (catálogo vigente, categorías principales,
+ * disponible VES). Los lotes y hojas extra se activan a pedido.
  *
  * @param {string} categoria        - 'TODOS', 'VINIBALL', 'VINIFAN', 'REPRESENTADAS'
  * @param {Array}  productos        - productos enriquecidos (stock-service.js)
- * @param {Object} options          - { includeInspeccion, includeSecundarios, includeExport122, autor }
+ * @param {Object} options          - { includeInspeccion, includeSecundarios,
+ *                                      includeExport122, incluirNoVigentes, linea, autor }
  *                                    includeInspeccion: muestra las columnas
  *                                    informativas 129 (Secundario), 40 (Traslado)
  *                                    y 121 (Inspección); no suman al Disponible.
  *                                    includeExport122: agrega hoja adicional
  *                                    "122 (Exportación)" con disponible/predespacho
  *                                    de ese almacén (solo informativa).
+ *                                    incluirNoVigentes: incluye descontinuados/inactivos.
+ *                                    linea: limita el reporte a una línea exacta.
  * @param {string} lastUpdated      - timestamp ISO del API
  * @returns {Promise<Blob>}        - Blob listo para descargar
  */
 export async function generateReportXLSX(categoria, productos, options = {}, lastUpdated = '') {
-  const { includeInspeccion = false, includeSecundarios = false, includeExport122 = false, autor = null } = options;
+  const {
+    includeInspeccion = false,
+    includeSecundarios = false,
+    includeExport122 = false,
+    incluirNoVigentes = false,
+    linea = '',
+    autor = null,
+  } = options;
 
-  if (!ExcelJS) {
-    throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
-  }
+  await loadExcelJS();
 
-  // Los reportes descargados incluyen solo SKUs del catálogo maestro.
-  // Los secundarios (sin estado de línea) van a la hoja "Sin Catálogo".
-  const filtered = productos.filter((p) => {
-    if (!esCatalogo(p)) return false;
-    if (categoria === 'TODOS') return CATEGORIAS_TODOS.includes(p.categoria);
-    return p.categoria === categoria;
-  });
+  // Reporte rápido: catálogo vigente de categorías principales (y línea a pedido).
+  const filtered = filtrarReporte(productos, { categoria, linea, incluirNoVigentes });
 
   filtered.forEach((p) => { if (lastUpdated) p.lastUpdated = lastUpdated; });
 
@@ -476,7 +499,9 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   // Hoja adicional: SKUs fuera de catálogo (solo categorías principales)
   if (includeSecundarios) {
     const secundarios = productos.filter(
-      (p) => !esCatalogo(p) && CATEGORIAS_TODOS.includes(p.categoria)
+      (p) => !esCatalogo(p)
+        && CATEGORIAS_TODOS.includes(p.categoria)
+        && (incluirNoVigentes || esVigente(p))
     );
     if (secundarios.length > 0) {
       const wsSinCat = wb.addWorksheet('Sin Catálogo');
@@ -510,9 +535,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
  * @returns {Promise<Blob>}
  */
 export async function generateExport122XLSX(productos, autor = null) {
-  if (!ExcelJS) {
-    throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
-  }
+  await loadExcelJS();
 
   const en122 = productos.filter(tieneStock122);
 
@@ -567,9 +590,7 @@ export function generarNombreArchivo(categoria) {
  * @returns {Promise<Blob>}
  */
 export async function generateEstadoXLSX(tipo, productos) {
-  if (!ExcelJS) {
-    throw new Error('[report-generator] ExcelJS no está cargado. Asegúrate de que exceljs.min.js se haya cargado.');
-  }
+  await loadExcelJS();
 
   const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
   const filtros = {

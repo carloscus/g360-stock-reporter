@@ -5,15 +5,16 @@
  *              Usa stock-store con 3 capas: memoria → sessionStorage → localStorage → API.
  *              Sin dependencias de JSON estáticos (enriquecimiento viene del API).
  * @author @carloscus
- * @version 7.3.0
+ * @version 7.4.0
  */
 
 import { saveData, loadData, isStale, getMeta, INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
 
-const STOCK_API_URL = 'https://g360-stock-api.onrender.com/api/v1/stock';
+const STOCK_API_URL = import.meta.env?.VITE_STOCK_API_URL || 'https://g360-stock-api.onrender.com/api/v1/stock';
 // Clave de lectura limitada para la PWA estatica. Nunca usar aqui la clave
 // administrativa de upload/catalogo. Rotarla desde Render cuando corresponda.
-const STOCK_READ_API_KEY = 'cipsa2026';
+// Se puede sobreescribir con VITE_STOCK_READ_KEY (ver .env.example).
+const STOCK_READ_API_KEY = import.meta.env?.VITE_STOCK_READ_KEY || 'cipsa2026';
 const API_TIMEOUT_MS = 25000;
 // Probe: solo metadata (limit=1, ~1 KB) para detectar regeneración sin descargar
 // el payload completo (~1.3 MB). Timeout amplio porque el proceso puede estar
@@ -210,10 +211,12 @@ export async function pingHealth() {
 }
 
 /**
- * Transforma la respuesta del API al formato interno esperado por los componentes.
- * El API ya enriquece cada item con un_bx, peso_kg, ean13, ean14, etc.
+ * Transforma la respuesta del API al formato interno de los componentes.
+ * Consume el modelo ENRIQUECIDO completo (ItemStockEnriched): además de stock,
+ * mapea um, flags comerciales y `revision` (estado para badges del frontend).
+ * Exportada para tests de comportamiento con payloads reales.
  */
-function _transformAPIResponse(apiData) {
+export function transformAPIResponse(apiData) {
   const productos = [];
   const stockMap = {};
 
@@ -239,18 +242,31 @@ function _transformAPIResponse(apiData) {
       linea: _normalizarLinea(item.linea),
       linea_id: item.linea_id || '',
       categoria: item.categoria,
+      categoria_venta: item.categoria_venta || '',
       grupo: item.grupo || '',
       familia: item.familia || '',
       tipo: item.tipo || '',
+      um: item.um || '',
       un_bx: unBx,
       precio: item.precio || 0,
-      precio_lista: item.precio_lista || 0,
       peso_kg: item.peso_kg || 0,
       ean13: item.ean13 || '',
       ean14: item.ean14 || '',
       estado_linea: item.estado_linea || '',
       orden: item.orden || 0,
       sin_catalogo: item.sin_catalogo || false,
+      sin_stock: item.sin_stock || false,
+      // Flags comerciales publicados por el catálogo maestro (v3.6.0)
+      descontinuado: item.descontinuado || false,
+      en_guia: item.en_guia || false,
+      compromiso: item.compromiso || false,
+      cotizable: item.cotizable || false,
+      por_activar: item.por_activar || false,
+      vigente: item.vigente !== false,
+      origen: item.origen || '',
+      derivado_de: item.derivado_de || '',
+      // Estado designado por el backend para badges del frontend
+      revision: item.revision || '',
       stock,
       stockFisico,
       bx,
@@ -272,6 +288,8 @@ function _transformAPIResponse(apiData) {
     totalAlmacenes: apiData.metadata?.total_almacenes || almacenesCount(apiData.items),
     totalSkus: productos.length,
     fuente: 'api',
+    // false ⇒ el backend sirvió sin catálogo: un_bx/peso/precio vienen en 0/1.
+    enriquecido: apiData.metadata?.enriquecido === true,
   };
 }
 
@@ -317,7 +335,7 @@ export async function loadStockData(force = false) {
         console.log('[stock-service] Cache API expirado, forzando refresco a pesar de misma revision');
       }
 
-      const data = _transformAPIResponse(apiData);
+      const data = transformAPIResponse(apiData);
       saveData(data, { source: 'api', version: 'v1', revision: newRevision });
       return data;
     } catch (error) {
@@ -393,6 +411,25 @@ export function esSinCatalogo(producto) {
   return !esCatalogo(producto);
 }
 
+const REVISION_LABELS = {
+  descontinuado: 'Descontinuado',
+  revision_venta: 'Revisión venta',
+  por_activar: 'Por activar',
+  compromiso: 'Compromiso',
+};
+
+/**
+ * Badge comercial según el campo `revision` que publica el backend
+ * (descontinuado, revision_venta, por_activar, compromiso).
+ * `sin_catalogo` se excluye: ya existe el badge "Sin catálogo".
+ * @returns {{rev: string, label: string}|null}
+ */
+export function revisionBadge(producto) {
+  const rev = (producto?.revision || '').trim();
+  if (!rev || rev === 'sin_catalogo') return null;
+  return { rev, label: REVISION_LABELS[rev] || rev };
+}
+
 /**
  * Etiqueta de stock según el modo de venta del SKU:
  * cajas ("N bx") si vende por caja, unidades ("N u") si vende por unidad.
@@ -422,10 +459,12 @@ function _getBx(producto) {
 
 /**
  * Genera la lista de alertas (críticas y de advertencia) ordenadas.
+ * Excluye SKUs descontinuados o no vigentes: no tiene sentido reponerlos.
  */
 export function generateAlerts(productos, limit = null) {
   const alerts = [];
   for (const p of productos) {
+    if (p.descontinuado || p.vigente === false) continue;
     const bx = _getBx(p);
     if (bx === 0) {
       alerts.push({ sku: p.sku, nombre: p.nombre, linea: p.linea,

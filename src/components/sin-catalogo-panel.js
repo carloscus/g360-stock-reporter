@@ -120,6 +120,25 @@ export class SinCatalogoPanel extends LitElement {
       border-color: var(--g360-accent);
     }
 
+    .load-more {
+      display: block;
+      width: 100%;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px dashed var(--g360-border-strong, var(--g360-border));
+      background: transparent;
+      color: var(--g360-accent);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .load-more:hover {
+      border-color: var(--g360-accent);
+    }
+
     .summary-cards {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -278,6 +297,22 @@ export class SinCatalogoPanel extends LitElement {
     this.query = '';
     this.secundarios = [];
     this.totalSecundarios = 0;
+    this._limite = 150;
+  }
+
+  _setQuery(e) {
+    this.query = e.target.value;
+    this._limite = 150; // reinicia el paginado al buscar
+  }
+
+  _setFilter(f) {
+    this.filter = f;
+    this._limite = 150;
+  }
+
+  _mostrarMas() {
+    this._limite += 150;
+    this.requestUpdate();
   }
 
   willUpdate(changedProperties) {
@@ -314,24 +349,16 @@ export class SinCatalogoPanel extends LitElement {
     return list;
   }
 
-  get conStock() {
-    return this.secundarios.filter((s) => s.stock > 0).length;
-  }
-
-  get sinStock() {
-    return this.secundarios.filter((s) => s.stock === 0).length;
-  }
-
-  get conPrecio() {
-    return this.secundarios.filter((s) => s.precio > 0).length;
-  }
-
-  get unidadesTotales() {
-    return this.secundarios.reduce((sum, s) => sum + s.stock, 0);
-  }
-
   render() {
     const filtered = this.filtered;
+    // Una sola pasada para contadores + unidades totales (antes: 4 filtrados).
+    let conStockN = 0, sinStockN = 0, conPrecioN = 0, unidades = 0;
+    for (const s of this.secundarios) {
+      if (s.stock > 0) conStockN++; else sinStockN++;
+      if (s.precio > 0) conPrecioN++;
+      unidades += s.stock;
+    }
+    const visibles = filtered.slice(0, this._limite);
 
     return html`
       <div class="header">
@@ -347,19 +374,19 @@ export class SinCatalogoPanel extends LitElement {
 
       <div class="summary-cards">
         <div class="summary-card">
-          <div class="summary-value">${this.conStock}</div>
+          <div class="summary-value">${conStockN}</div>
           <div class="summary-label">Con Stock</div>
         </div>
         <div class="summary-card">
-          <div class="summary-value">${this.sinStock}</div>
+          <div class="summary-value">${sinStockN}</div>
           <div class="summary-label">Sin Stock</div>
         </div>
         <div class="summary-card">
-          <div class="summary-value">${this.unidadesTotales.toLocaleString('es-PE')}</div>
+          <div class="summary-value">${unidades.toLocaleString('es-PE')}</div>
           <div class="summary-label">Unidades Totales</div>
         </div>
         <div class="summary-card">
-          <div class="summary-value">${this.conPrecio}</div>
+          <div class="summary-value">${conPrecioN}</div>
           <div class="summary-label">Con Precio</div>
         </div>
       </div>
@@ -371,29 +398,33 @@ export class SinCatalogoPanel extends LitElement {
             <path d="M21 21l-4.35-4.35"/>
           </svg>
           <input
-            type="text"
+            type="search"
             placeholder="Buscar por SKU o descripción..."
             .value=${this.query}
-            @input=${(e) => this.query = e.target.value}
+            @input=${this._setQuery}
+            spellcheck="false"
+            autocapitalize="off"
+            enterkeyhint="search"
+            aria-label="Buscar SKU fuera de catálogo"
           />
         </div>
 
         <div class="filters">
           <button
             class="filter-btn ${this.filter === 'con-stock' ? 'active' : ''}"
-            @click=${() => this.filter = 'con-stock'}
-          >Con Stock (${this.conStock})</button>
+            @click=${() => this._setFilter('con-stock')}
+          >Con Stock (${conStockN})</button>
           <button
             class="filter-btn ${this.filter === 'sin-stock' ? 'active' : ''}"
-            @click=${() => this.filter = 'sin-stock'}
-          >Sin Stock (${this.sinStock})</button>
+            @click=${() => this._setFilter('sin-stock')}
+          >Sin Stock (${sinStockN})</button>
           <button
             class="filter-btn ${this.filter === 'con-precio' ? 'active' : ''}"
-            @click=${() => this.filter = 'con-precio'}
-          >Con Precio (${this.conPrecio})</button>
+            @click=${() => this._setFilter('con-precio')}
+          >Con Precio (${conPrecioN})</button>
           <button
             class="filter-btn ${this.filter === 'todos' ? 'active' : ''}"
-            @click=${() => this.filter = 'todos'}
+            @click=${() => this._setFilter('todos')}
           >Todos (${this.totalSecundarios})</button>
         </div>
       </div>
@@ -408,7 +439,7 @@ export class SinCatalogoPanel extends LitElement {
         </div>
       ` : html`
         <div class="list">
-          ${filtered.map((s) => html`
+          ${visibles.map((s) => html`
             <div class="item ${s.stock === 0 ? 'sinstock' : ''}">
               <div class="item-left">
                 <div class="item-sku">${s.sku}</div>
@@ -425,6 +456,11 @@ export class SinCatalogoPanel extends LitElement {
               </div>
             </div>
           `)}
+          ${filtered.length > visibles.length ? html`
+            <button class="load-more" @click=${this._mostrarMas}>
+              Mostrar más (${Math.min(150, filtered.length - visibles.length)} de ${filtered.length - visibles.length} restantes)
+            </button>
+          ` : ''}
         </div>
       `}
     `;

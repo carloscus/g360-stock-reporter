@@ -85,18 +85,21 @@ memoria (<1ms) → sessionStorage (<5min) → localStorage (<7d, >15min=fresh) �
 ```
 src/
 ├── components/
-│   ├── app-root.js        # Raíz: navegación, store subscription
-│   ├── stock-header.js    # Header con tema toggle
-│   ├── pulso-form.js      # Formulario + modal de descarga XLSX
-│   ├── estado-panel.js    # Dashboard KPIs + categorías por estado
-│   ├── stock-alerts.js    # Lista filtrada de alertas
-│   ├── stock-search.js    # Búsqueda fuzzy multi-término (Fuse.js, sin tildes)
+│   ├── app-root.js        # Raíz: navegación, sesión, store subscription
+│   ├── login-view.js      # Login local simulado (@cipsa.com.pe)
+│   ├── stock-header.js    # Header con tema + usuario/sesión
+│   ├── pulso-form.js      # Reporte XLSX (usa la sesión como autor)
+│   ├── estado-panel.js    # Dashboard KPIs + categorías + vista de alertas
+│   ├── stock-search.js    # Búsqueda fuzzy multi-término + compartir SKUs
 │   ├── almacen-legend.js  # Leyenda de colores de almacenes (compartida)
 │   └── sin-catalogo-panel.js  # Ítems fuera del catálogo maestro
 ├── core/
 │   ├── stock-store.js     # Store centralizado (pub/sub + 3 capas cache)
-│   ├── stock-service.js   # Carga de datos con fallback a localStorage
-│   ├── report-generator.js # Generación XLSX en browser (ExcelJS, jerarquía VES/129/40/121/122)
+│   ├── stock-service.js   # Datos del API, modelo enriquecido y helpers
+│   ├── report-generator.js # Generación XLSX en browser (ExcelJS)
+│   ├── report-filters.js  # Segmentación del reporte (vigente/categoría/línea)
+│   ├── share.js           # Mensaje compacto para compartir SKUs
+│   ├── session.js         # Sesión local (nombre + email corporativo)
 │   └── skill.json         # Configuración del skill G360
 ├── styles/
 │   └── main.css           # Variables G360, tema dark/light
@@ -152,14 +155,41 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
   chips por almacén con color por rol + leyenda colapsable compartida
   (`almacen-legend.js`); búsqueda multi-término AND insensible a tildes
   (`ignoreDiacritics`); link compartido `?q=SKU` abre la búsqueda ya filtrada.
-- **XLSX**: "Disponible VES" + columnas informativas 129/40/121 (checkbox) + hoja
-  adicional "122 (Exportación)" con disponible/predespacho (checkbox propio o
-  descarga directa desde el menú Exportar del dashboard).
-- **Formulario**: el solicitante se recuerda en el equipo (localStorage) con prefill;
-  validación `@cipsa.com.pe` y bloqueo por intentos intactos (no es autenticación);
-  guía "Instrucciones" colapsable (abierta en primera visita).
+- **Compartir**: modo "Seleccionar" en el buscador → mensaje compacto de varios
+  SKUs (SKU, nombre y Disponible VES) por `navigator.share` (WhatsApp) con
+  fallback a `wa.me`/portapapeles. Pensado para PWA móvil, donde compartir texto
+  es más confiable que descargar archivos.
+- **XLSX**: por defecto es un **reporte rápido**: catálogo vigente (sin
+  descontinuados), categorías principales y Disponible VES; el alcance puede
+  acotarse a **una línea** y se pueden incluir no vigentes a pedido. Columnas
+  informativas 129/40/121 (checkbox) + hoja adicional "122 (Exportación)"
+  (checkbox propio o descarga directa desde el menú Exportar del dashboard).
+- **Acceso**: login local simulado (nombre + email `@cipsa.com.pe`) como página de
+  entrada; sesión en localStorage y cierre desde el header. No es autenticación
+  (sin backend): firma los reportes y evita pedir datos en cada descarga.
+- **Formulario**: sin campos de identidad (usa la sesión); guía "Instrucciones"
+  colapsable (abierta en primera visita).
 - **PWA**: banner "Nueva versión → Actualizar" al detectar update del SW; safe-areas
   para notch/gestos; sin `orientation` forzada; SW sin requests duplicados al API.
+
+## Modelo enriquecido del API
+
+El frontend consume el `ItemStockEnriched` completo (no solo stock):
+
+| Campo | Uso en la app |
+|-------|---------------|
+| `revision` | Badge único: `Descontinuado`, `Revisión venta`, `Por activar`, `Compromiso` |
+| `descontinuado` / `vigente` | Excluidos de alertas de reposición |
+| `categoria_venta` | Semáforo comercial (incluye `REVISION_VENTA`) |
+| `sin_stock` / `por_activar` | SKU en catálogo sin stock / sin precio |
+| `compromiso` / `cotizable` / `en_guia` | Flags comerciales por SKU |
+| `origen` / `derivado_de` | Trazabilidad de la ficha |
+| `um` | Unidad de medida (detalle del dashboard) |
+| `metadata.enriquecido` | Si es `false`, la barra de estado avisa "Datos sin catálogo" |
+
+> Los flags vienen del catálogo maestro v3.6.0; `revision` es el estado que el
+> backend designa para badges del frontend.
+
 
 ## Scripts
 
@@ -167,7 +197,25 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
 npm run dev       # Desarrollo (Vite en puerto 3000)
 npm run build     # Producción (dist/)
 npm run preview   # Preview producción
+npm test          # Tests de comportamiento (Vitest)
 ```
+
+## Verificación
+
+Un solo comando deja el repo listo y verifica que todo esté en verde
+(offline tras el install; la app no necesita configuración para arrancar):
+
+```bash
+npm ci
+npm test
+npm run build
+```
+
+- **Entorno**: `.env.example` declara `VITE_STOCK_API_URL` y
+  `VITE_STOCK_READ_KEY` con defaults seguros (la app funciona sin `.env`).
+- **Tests**: `tests/` cubre la jerarquía de almacenes (VES/129/40/121/122),
+  disponible VES, cajas/unidades, alertas, estados y ventana operativa.
+- **Stack**: Node ≥ 22.12 (Vitest 5), Vite 8.
 
 ## Deploy (GitHub Actions)
 
@@ -196,7 +244,7 @@ PORT=8000
 
 ## Tech Stack
 
-- **Frontend**: Lit 3.1, Vite 4, ExcelJS, Fuse.js
+- **Frontend**: Lit 3.1, Vite 8, ExcelJS, Fuse.js
 - **PWA**: Service Worker, manifest.json, cache strategies
 - **Backend**: FastAPI, httpx, xlsx (appweb scraper)
 - **Hosting**: GitHub Pages (frontend) + Render (backend)
