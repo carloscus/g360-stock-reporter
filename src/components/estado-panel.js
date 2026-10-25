@@ -8,7 +8,7 @@
  */
 
 import { LitElement, html, css } from 'lit';
-import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esSinCatalogo, revisionBadge, UMBRAL_BAJO_STOCK, tieneStock122 } from '../core/stock-service.js';
+import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo, revisionBadge, UMBRAL_BAJO_STOCK, tieneStock122 } from '../core/stock-service.js';
 import { esVigente } from '../core/report-filters.js';
 import { ALMACEN_EXPORTACION } from '../core/stock-store.js';
 import './almacen-legend.js';
