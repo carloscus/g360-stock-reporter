@@ -87,7 +87,8 @@ src/
 ├── components/
 │   ├── app-root.js        # Raíz: navegación, sesión, store subscription
 │   ├── login-view.js      # Login local simulado (@cipsa.com.pe)
-│   ├── stock-header.js    # Header con tema + usuario/sesión
+│   ├── stock-header.js    # Header + menú de sesión (tema / cerrar sesión)
+│   ├── install-banner.js  # Banner flotante de instalación PWA (cooldown 14 días)
 │   ├── pulso-form.js      # Reporte XLSX (usa la sesión como autor)
 │   ├── estado-panel.js    # Dashboard KPIs + categorías + vista de alertas
 │   ├── stock-search.js    # Búsqueda fuzzy multi-término + compartir SKUs
@@ -165,8 +166,12 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
   informativas 129/40/121 (checkbox) + hoja adicional "122 (Exportación)"
   (checkbox propio o descarga directa desde el menú Exportar del dashboard).
 - **Acceso**: login local simulado (nombre + email `@cipsa.com.pe`) como página de
-  entrada; sesión en localStorage y cierre desde el header. No es autenticación
-  (sin backend): firma los reportes y evita pedir datos en cada descarga.
+  entrada; sesión en localStorage y menú de sesión en el header (tema claro/oscuro
+  y cerrar sesión). No es autenticación (sin backend): firma los reportes y evita
+  pedir datos en cada descarga.
+- **Instalar (PWA)**: banner flotante en móvil; Android usa el prompt nativo e iOS
+  muestra los pasos manuales. Se oculta si ya está instalada o si se cerró en los
+  últimos 14 días.
 - **Formulario**: sin campos de identidad (usa la sesión); guía "Instrucciones"
   colapsable (abierta en primera visita).
 - **PWA**: banner "Nueva versión → Actualizar" al detectar update del SW; safe-areas

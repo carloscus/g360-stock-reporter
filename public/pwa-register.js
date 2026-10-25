@@ -52,6 +52,7 @@ window.promptInstall = function promptInstall() {
       console.log('[PWA] Instalado');
     }
     deferredPrompt = null;
+    window.__g360Installable = false;
     window.dispatchEvent(new CustomEvent('pwa-installable', { detail: false }));
   });
   return true;
@@ -60,6 +61,8 @@ window.promptInstall = function promptInstall() {
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
+  // Flag global: el banner puede montarse después de este evento.
+  window.__g360Installable = true;
   console.log('[PWA] Instalable detectado');
   window.dispatchEvent(new CustomEvent('pwa-installable', { detail: true }));
 });
@@ -67,6 +70,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 // Ocultar botón si la app ya está instalada
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null;
+  window.__g360Installable = false;
   console.log('[PWA] Instalada');
   window.dispatchEvent(new CustomEvent('pwa-installable', { detail: false }));
 });

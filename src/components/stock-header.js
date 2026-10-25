@@ -3,7 +3,7 @@
  * @description Header con logo y toggle de tema.
  *              Busqueda se activa solo desde el nav item "Buscar" en app-root.
  * @author @carloscus
- * @version 2.2.0
+ * @version 2.3.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -12,8 +12,9 @@ export class StockHeader extends LitElement {
   static properties = {
     titulo: { type: String },
     theme: { type: String },
-    installable: { type: Boolean },
     usuario: { type: String },
+    email: { type: String },
+    menuOpen: { type: Boolean },
   };
 
   static styles = css`
@@ -88,62 +89,8 @@ export class StockHeader extends LitElement {
       font-weight: var(--g360-weight-semibold);
     }
 
-    .icon-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      border: none;
-      background: transparent;
-      color: var(--g360-muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all var(--g360-transition);
-      flex-shrink: 0;
-    }
-
-    .icon-btn:hover {
-      background: var(--g360-bg);
-      color: var(--g360-text);
-    }
-
-    .icon-btn:focus-visible {
-      outline: 2px solid var(--g360-accent);
-      outline-offset: 2px;
-    }
-
-    .theme-btn {
-      color: var(--g360-text);
-      background: var(--g360-bg);
-      border: 1px solid var(--g360-border);
-    }
-
-    .theme-btn:hover {
-      border-color: var(--g360-accent);
-      background: rgba(0, 208, 132, 0.05);
-    }
-
-    .install-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      height: 40px;
-      padding: 0 14px;
-      border-radius: 10px;
-      border: 1px solid var(--g360-border);
-      background: var(--g360-bg);
-      color: var(--g360-accent);
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-      flex-shrink: 0;
-    }
-
-    .install-btn:hover {
-      border-color: var(--g360-accent);
-      background: rgba(0, 208, 132, 0.1);
+    .user-wrap {
+      position: relative;
     }
 
     .user-btn {
@@ -151,7 +98,7 @@ export class StockHeader extends LitElement {
       align-items: center;
       gap: 8px;
       height: 40px;
-      padding: 0 12px 0 6px;
+      padding: 0 10px 0 6px;
       border-radius: 10px;
       border: 1px solid var(--g360-border);
       background: var(--g360-bg);
@@ -161,10 +108,11 @@ export class StockHeader extends LitElement {
       font-size: 12px;
       font-weight: 600;
       transition: all 0.2s;
-      max-width: 180px;
+      max-width: 200px;
     }
 
-    .user-btn:hover {
+    .user-btn:hover,
+    .user-btn.open {
       border-color: var(--g360-accent);
     }
 
@@ -188,6 +136,83 @@ export class StockHeader extends LitElement {
       white-space: nowrap;
     }
 
+    .chev {
+      font-size: 10px;
+      color: var(--g360-muted);
+      transition: transform 0.2s;
+    }
+
+    .user-btn.open .chev {
+      transform: rotate(180deg);
+    }
+
+    .user-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      min-width: 220px;
+      background: var(--g360-surface);
+      border: 1px solid var(--g360-border);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      padding: 6px;
+      z-index: 60;
+    }
+
+    .menu-head {
+      padding: 8px 10px 10px;
+      border-bottom: 1px solid var(--g360-border);
+      margin-bottom: 6px;
+    }
+
+    .menu-name {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--g360-text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .menu-email {
+      display: block;
+      font-size: 11px;
+      color: var(--g360-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--g360-text);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .menu-item:hover {
+      background: var(--g360-bg);
+    }
+
+    .menu-item.danger {
+      color: #ef4444;
+    }
+
+    .menu-item svg {
+      flex-shrink: 0;
+    }
+
     @media (max-width: 600px) {
       .user-name {
         display: none;
@@ -195,23 +220,6 @@ export class StockHeader extends LitElement {
       .user-btn {
         padding: 0 6px;
       }
-    }
-
-    @media (max-width: 600px) {
-      .install-btn {
-        width: 40px;
-        padding: 0;
-        justify-content: center;
-        font-size: 0;
-      }
-      .install-btn span {
-        font-size: 18px;
-      }
-    }
-
-    .theme-emoji {
-      font-size: 20px;
-      line-height: 1;
     }
 
     @media (min-width: 1024px) {
@@ -227,31 +235,43 @@ export class StockHeader extends LitElement {
   constructor() {
     super();
     this.titulo = 'StockPulse';
-    this.installable = false;
-    this._onInstallable = (e) => { this.installable = e.detail; };
+    this.menuOpen = false;
+    this._onDocClick = this._handleDocClick.bind(this);
   }
 
   connectedCallback() {
     super.connectedCallback();
-    window.addEventListener('pwa-installable', this._onInstallable);
+    document.addEventListener('click', this._onDocClick);
+    document.addEventListener('keydown', this._onDocClick);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-    window.removeEventListener('pwa-installable', this._onInstallable);
+    document.removeEventListener('click', this._onDocClick);
+    document.removeEventListener('keydown', this._onDocClick);
   }
 
-  _install() {
-    if (typeof window.promptInstall === 'function') {
-      window.promptInstall();
+  _handleDocClick(e) {
+    if (!this.menuOpen) return;
+    if (e.type === 'keydown') {
+      if (e.key === 'Escape') this.menuOpen = false;
+      return;
     }
+    const path = e.composedPath ? e.composedPath() : [];
+    if (!path.includes(this)) this.menuOpen = false;
+  }
+
+  _toggleMenu() {
+    this.menuOpen = !this.menuOpen;
   }
 
   _dispatchTheme() {
+    this.menuOpen = false;
     this.dispatchEvent(new CustomEvent('toggle-theme', { bubbles: true, composed: true }));
   }
 
   _dispatchLogout() {
+    this.menuOpen = false;
     this.dispatchEvent(new CustomEvent('logout', { bubbles: true, composed: true }));
   }
 
@@ -269,35 +289,40 @@ export class StockHeader extends LitElement {
         </div>
         <div class="header-right">
           ${this.usuario ? html`
-            <button
-              class="user-btn"
-              @click=${this._dispatchLogout}
-              title="Cerrar sesión (${this.usuario})"
-              aria-label="Cerrar sesión de ${this.usuario}"
-            >
-              <span class="user-avatar" aria-hidden="true">${this.usuario.charAt(0).toUpperCase()}</span>
-              <span class="user-name">${this.usuario}</span>
-            </button>
+            <div class="user-wrap">
+              <button
+                class="user-btn ${this.menuOpen ? 'open' : ''}"
+                @click=${this._toggleMenu}
+                aria-haspopup="menu"
+                aria-expanded=${this.menuOpen ? 'true' : 'false'}
+                aria-label="Menú de sesión de ${this.usuario}"
+              >
+                <span class="user-avatar" aria-hidden="true">${this.usuario.charAt(0).toUpperCase()}</span>
+                <span class="user-name">${this.usuario}</span>
+                <span class="chev" aria-hidden="true">▾</span>
+              </button>
+              ${this.menuOpen ? html`
+                <div class="user-menu" role="menu">
+                  <div class="menu-head">
+                    <span class="menu-name">${this.usuario}</span>
+                    ${this.email ? html`<span class="menu-email">${this.email}</span>` : ''}
+                  </div>
+                  <button class="menu-item" role="menuitem" @click=${this._dispatchTheme}>
+                    <span aria-hidden="true">${this.theme === 'dark' ? '☀️' : '🌙'}</span>
+                    ${this.theme === 'dark' ? 'Tema claro' : 'Tema oscuro'}
+                  </button>
+                  <button class="menu-item danger" role="menuitem" @click=${this._dispatchLogout}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                      <polyline points="16 17 21 12 16 7"/>
+                      <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    Cerrar sesión
+                  </button>
+                </div>
+              ` : ''}
+            </div>
           ` : ''}
-          ${this.installable ? html`
-            <button
-              class="install-btn"
-              @click=${this._install}
-              title="Instalar aplicación"
-              aria-label="Instalar aplicación"
-            >
-              <span aria-hidden="true">⬇️</span>
-              Instalar
-            </button>
-          ` : ''}
-          <button
-            class="icon-btn theme-btn"
-            @click=${this._dispatchTheme}
-            title=${this.theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
-            aria-label="Cambiar tema"
-          >
-            <span class="theme-emoji" aria-hidden="true">${this.theme === 'dark' ? '☀️' : '🌙'}</span>
-          </button>
         </div>
       </header>
     `;

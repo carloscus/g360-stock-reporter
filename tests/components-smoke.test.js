@@ -2,6 +2,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import '../src/components/app-root.js';
 import '../src/components/login-view.js';
+import '../src/components/install-banner.js';
+import '../src/components/stock-header.js';
 import '../src/components/stock-search.js';
 import '../src/components/pulso-form.js';
 import '../src/components/sin-catalogo-panel.js';
@@ -94,5 +96,54 @@ describe('componentes (smoke de render)', () => {
     document.body.appendChild(el);
     await el.updateComplete;
     expect(el.shadowRoot.querySelector('login-view')).toBeTruthy();
+  });
+
+  it('stock-header: el chip abre menú (tema + logout) sin desloguear directo', async () => {
+    const el = document.createElement('stock-header');
+    el.usuario = 'Carlos Cusi';
+    el.email = 'carlos@cipsa.com.pe';
+    el.theme = 'dark';
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const eventos = { logout: 0, theme: 0 };
+    el.addEventListener('logout', () => eventos.logout++);
+    el.addEventListener('toggle-theme', () => eventos.theme++);
+
+    el.shadowRoot.querySelector('.user-btn').click();
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.user-menu')).toBeTruthy();
+    expect(el.shadowRoot.textContent).toContain('carlos@cipsa.com.pe');
+    expect(eventos.logout).toBe(0); // abrir no cierra sesión
+
+    el.shadowRoot.querySelector('.menu-item.danger').click();
+    expect(eventos.logout).toBe(1);
+
+    el.menuOpen = true;
+    await el.updateComplete;
+    el.shadowRoot.querySelector('.menu-item:not(.danger)').click();
+    expect(eventos.theme).toBe(1);
+  });
+
+  it('install-banner: aparece, se descarta y respeta el cooldown', async () => {
+    window.__g360Installable = false;
+    const el = document.createElement('install-banner');
+    document.body.appendChild(el);
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.banner')).toBeNull();
+
+    window.dispatchEvent(new CustomEvent('pwa-installable', { detail: true }));
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.banner')).toBeTruthy();
+
+    el.shadowRoot.querySelector('.dismiss').click();
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.banner')).toBeNull();
+    expect(localStorage.getItem('g360_install_dismissed_v1')).toBeTruthy();
+
+    const el2 = document.createElement('install-banner');
+    document.body.appendChild(el2);
+    await el2.updateComplete;
+    expect(el2.shadowRoot.querySelector('.banner')).toBeNull();
   });
 });

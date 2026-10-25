@@ -13,6 +13,7 @@ import { generateAlerts, loadStockData, probeStockData, pingHealth, isBusinessHo
 import { loadSession, clearSession } from '../core/session.js';
 import './stock-header.js';
 import './login-view.js';
+import './install-banner.js';
 import './pulso-form.js';
 import './estado-panel.js';
 import './stock-search.js';
@@ -858,6 +859,7 @@ export class AppRoot extends LitElement {
             @logout=${this._onLogout}
             .theme=${this.theme}
             .usuario=${this._session.nombre}
+            .email=${this._session.email}
           ></stock-header>
 
           <!-- Status bar: frescura del reporte del servidor + copia local + botón fuerza-refresh -->
@@ -913,6 +915,8 @@ export class AppRoot extends LitElement {
             </div>
           </div>
         ` : ''}
+
+        <install-banner></install-banner>
 
         ${this._updateAvailable ? html`
           <div class="update-pill" role="status">
