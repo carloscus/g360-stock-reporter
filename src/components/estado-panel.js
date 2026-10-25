@@ -730,8 +730,8 @@ export class EstadoPanel extends LitElement {
   }
 
   _getFilteredSkus(categoria) {
-    const productos = this.stockData?.productos || [];
-    let filtered = productos.filter(p => (p.categoria || 'SIN CATEGORIA') === categoria);
+    // Mismo universo que KPIs y alertas: catálogo vigente.
+    let filtered = this._baseProductos().filter(p => (p.categoria || 'SIN CATEGORIA') === categoria);
     if (this.filter === 'sinStock') {
       filtered = filtered.filter(s => s.bx === 0);
     } else if (this.filter === 'bajoStock') {
@@ -800,6 +800,11 @@ export class EstadoPanel extends LitElement {
   }
 
   _renderAlertas() {
+    // Totales sobre el universo de alertas (sin filtro de texto/estado).
+    const todas = this._baseProductos().filter((p) => (p.bx ?? 0) < UMBRAL_BAJO_STOCK);
+    const sinStock = todas.filter((p) => (p.bx ?? 0) === 0).length;
+    const bajoStock = todas.length - sinStock;
+
     const alertas = this._alertasFiltradas();
     const limite = this._limites.get('__alertas') || LIMITE_SKUS;
     const visibles = alertas.slice(0, limite);
@@ -807,7 +812,7 @@ export class EstadoPanel extends LitElement {
     return html`
       <div class="header">
         <h1>🚨 Alertas</h1>
-        <span class="badge-count">${alertas.length}</span>
+        <span class="badge-count">${todas.length}</span>
       </div>
 
       <div class="search-box">
@@ -823,9 +828,9 @@ export class EstadoPanel extends LitElement {
           aria-label="Buscar alerta"
         />
         <select class="filter-select" @change=${this._setFilter}>
-          <option value="all" ?selected=${this.filter === 'all'}>Todos</option>
-          <option value="bajoStock" ?selected=${this.filter === 'bajoStock'}>Bajo Stock</option>
-          <option value="sinStock" ?selected=${this.filter === 'sinStock'}>Sin Stock</option>
+          <option value="all" ?selected=${this.filter === 'all'}>Todos (${todas.length})</option>
+          <option value="bajoStock" ?selected=${this.filter === 'bajoStock'}>Bajo Stock (${bajoStock})</option>
+          <option value="sinStock" ?selected=${this.filter === 'sinStock'}>Sin Stock (${sinStock})</option>
         </select>
       </div>
 

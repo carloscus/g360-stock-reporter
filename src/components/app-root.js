@@ -549,7 +549,7 @@ export class AppRoot extends LitElement {
       this._stockData = data;
       const catalogados = (data.productos || []).filter(esCatalogo);
       this.alertCount = catalogados.length > 0
-        ? generateAlerts(catalogados).filter(a => a.type === 'critical').length
+        ? generateAlerts(catalogados).length
         : 0;
       this._updateDataStatus();
       // Link compartido ?q=SKU: abrir el buscador con ese término al llegar datos

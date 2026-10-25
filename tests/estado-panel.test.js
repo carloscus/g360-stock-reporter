@@ -28,6 +28,9 @@ const stockData = {
     producto(),
     producto({ sku: '011019', nombre: 'BALON BASKET', bx: 5, stock: 240, un_bx: 48 }),
     producto({ sku: '031177', nombre: 'ROMPECABEZAS', bx: 0, stock: 0, categoria: 'VINIFAN' }),
+    // Fuera del universo accionable: no deben aparecer en Estado ni Alertas
+    producto({ sku: '999001', nombre: 'ITEM DESCONTINUADO', bx: 3, stock: 144, descontinuado: true }),
+    producto({ sku: '999002', nombre: 'ITEM SIN CATALOGO', estado_linea: '', bx: 2, stock: 96 }),
   ],
 };
 
@@ -58,11 +61,31 @@ describe('estado-panel (render real)', () => {
     expect(el.shadowRoot.querySelector('.export-menu')).toBeTruthy();
   });
 
+  it('las secciones no mezclan descontinuados ni SKUs sin catálogo', async () => {
+    const el = await montar('dashboard');
+    el._expandedCategories = new Set(['VINIBALL']);
+    el.requestUpdate();
+    await el.updateComplete;
+
+    const texto = el.shadowRoot.textContent;
+    expect(texto).toContain('VOLEY VINIBALL GOMA FOLK');
+    expect(texto).toContain('BALON BASKET');
+    expect(texto).not.toContain('ITEM DESCONTINUADO');
+    expect(texto).not.toContain('ITEM SIN CATALOGO');
+    expect(el.shadowRoot.querySelectorAll('.sku-item')).toHaveLength(2);
+  });
+
   it('renderiza alertas con búsqueda y filtros', async () => {
     const el = await montar('alertas');
     const texto = el.shadowRoot.textContent;
     expect(texto).toContain('Alertas');
     expect(el.shadowRoot.querySelector('.search-input')).toBeTruthy();
     expect(el.shadowRoot.querySelectorAll('.sku-item').length).toBe(2);
+
+    // Los contadores del header y de los filtros coinciden con la vista.
+    expect(el.shadowRoot.querySelector('.badge-count').textContent).toBe('2');
+    expect(texto).toContain('Todos (2)');
+    expect(texto).toContain('Bajo Stock (1)');
+    expect(texto).toContain('Sin Stock (1)');
   });
 });

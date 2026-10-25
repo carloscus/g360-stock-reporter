@@ -28,6 +28,7 @@ export class StockSearch extends LitElement {
     autor: { type: String },
     _selected: { type: Object },
     _shareMsg: { type: String },
+    voiceError: { type: String },
   };
 
   static styles = css`
@@ -101,6 +102,13 @@ export class StockSearch extends LitElement {
       color: var(--g360-danger);
       background: var(--g360-danger-bg);
       animation: pulse 1.5s infinite;
+    }
+
+    .voice-error {
+      padding: 0 16px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--g360-danger);
     }
 
     @keyframes pulse {
@@ -551,6 +559,7 @@ export class StockSearch extends LitElement {
     this.autor = '';
     this._selected = new Set();
     this._shareMsg = '';
+    this.voiceError = '';
     this._debounceTimer = null;
     this._fuse = null;
     this._recognition = null;
@@ -584,14 +593,42 @@ export class StockSearch extends LitElement {
       this._recognition.continuous = false;
       this._recognition.interimResults = true;
       this._recognition.lang = 'es-PE';
+
+      this._recognition.onstart = () => {
+        this.isListening = true;
+        this.voiceError = '';
+      };
+
+      this._recognition.onerror = (event) => {
+        const code = event?.error || '';
+        this.isListening = false;
+        this.voiceError =
+          code === 'not-allowed' || code === 'service-not-allowed'
+            ? 'Permiso de micrófono denegado'
+            : code === 'no-speech'
+              ? 'No se escuchó nada, intenta de nuevo'
+              : code === 'network'
+                ? 'Sin conexión para el dictado'
+                : 'No se pudo usar el micrófono';
+        this.requestUpdate();
+      };
+
       this._recognition.onresult = (event) => {
         let transcript = '';
+        let esFinal = false;
         for (let i = 0; i < event.results.length; i++) {
           transcript += event.results[i][0].transcript;
+          if (event.results[i].isFinal) esFinal = true;
         }
         this.searchTerm = this._normalizarVoz(transcript);
-        if (this.searchTerm.length >= 2) this._search();
+        // Debounce: los resultados intermedios no deben disparar una búsqueda
+        // por cada sílaba (parpadeo y trabajo de Fuse innecesario).
+        if (this._debounceTimer) clearTimeout(this._debounceTimer);
+        if (this.searchTerm.length >= 2) {
+          this._debounceTimer = setTimeout(() => this._search(), esFinal ? 0 : 200);
+        }
       };
+
       this._recognition.onend = () => { this.isListening = false; };
     }
   }
@@ -685,11 +722,18 @@ export class StockSearch extends LitElement {
 
   _toggleVoiceSearch() {
     if (!this._recognition) return;
+    this.voiceError = '';
     if (this.isListening) {
-      this._recognition.stop();
-    } else {
-      this.isListening = true;
+      this._stopVoiceSearch();
+      return;
+    }
+    try {
       this._recognition.start();
+      this.isListening = true;
+    } catch {
+      // start() lanza si ya está activo o si el permiso fue denegado.
+      this.isListening = false;
+      this.voiceError = 'No se pudo iniciar el micrófono';
     }
   }
 
@@ -904,6 +948,8 @@ export class StockSearch extends LitElement {
             @click=${this._toggleVoiceSearch}
             ?disabled=${this.isLoading}
             title="Buscar por voz"
+            aria-label="Buscar por voz"
+            aria-pressed=${this.isListening ? 'true' : 'false'}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -946,6 +992,8 @@ export class StockSearch extends LitElement {
         </div>
         <almacen-legend></almacen-legend>
       </div>
+
+      ${this.voiceError ? html`<div class="voice-error" role="status">${this.voiceError}</div>` : ''}
 
       <div class="search-results">
         ${this.isLoading ? html`
