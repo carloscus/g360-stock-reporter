@@ -65,8 +65,8 @@ export class PulsoForm extends LitElement {
     }
 
     .guide {
-      background: linear-gradient(135deg, rgba(0, 208, 132, 0.15), rgba(0, 208, 132, 0.05));
-      border: 1px solid rgba(0, 208, 132, 0.25);
+      background: linear-gradient(135deg, var(--lote-ves-bg), transparent);
+      border: 1px solid var(--lote-ves-border);
       border-radius: 16px;
       padding: 16px;
       margin-bottom: 20px;
@@ -167,7 +167,7 @@ export class PulsoForm extends LitElement {
 
     input:focus {
       border-color: var(--g360-accent);
-      box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.15);
+      box-shadow: 0 0 0 3px var(--lote-ves-bg);
     }
 
     input::placeholder {
@@ -176,14 +176,14 @@ export class PulsoForm extends LitElement {
     }
 
     input.error {
-      border-color: #ef4444;
+      border-color: var(--g360-danger);
     }
 
     .error-message {
       display: flex;
       align-items: center;
       gap: 4px;
-      color: #ef4444;
+      color: var(--g360-danger);
       font-size: 11px;
       font-weight: 600;
       margin-top: 6px;
@@ -224,8 +224,8 @@ export class PulsoForm extends LitElement {
     .chip.active {
       background: var(--g360-accent);
       border-color: var(--g360-accent);
-      color: var(--g360-bg);
-      box-shadow: 0 4px 12px rgba(0, 208, 132, 0.3);
+      color: var(--g360-on-accent);
+      box-shadow: 0 4px 12px var(--lote-ves-bg);
     }
 
     .submit-btn {
@@ -233,8 +233,8 @@ export class PulsoForm extends LitElement {
       padding: 14px 20px;
       border: none;
       border-radius: 12px;
-      background: linear-gradient(135deg, var(--g360-accent), #00a06e);
-      color: var(--g360-bg);
+      background: linear-gradient(135deg, var(--g360-accent), var(--g360-accent-strong));
+      color: var(--g360-on-accent);
       font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
@@ -249,7 +249,7 @@ export class PulsoForm extends LitElement {
 
     .submit-btn:hover:not(:disabled) {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0, 208, 132, 0.35);
+      box-shadow: 0 8px 20px var(--lote-ves-bg);
     }
 
     .submit-btn:active:not(:disabled) {
@@ -264,7 +264,7 @@ export class PulsoForm extends LitElement {
 
     .submit-btn.blocked {
       opacity: 0.6;
-      background: #ef4444;
+      background: var(--g360-danger);
       cursor: not-allowed;
     }
 
@@ -377,7 +377,7 @@ export class PulsoForm extends LitElement {
     .modal-icon {
       width: 80px;
       height: 80px;
-      background: rgba(0, 208, 132, 0.2);
+      background: var(--lote-ves-bg);
       border-radius: 50%;
       display: flex;
       align-items: center;

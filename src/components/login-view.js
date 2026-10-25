@@ -90,14 +90,14 @@ export class LoginView extends LitElement {
 
     input:focus {
       border-color: var(--g360-accent);
-      box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.15);
+      box-shadow: 0 0 0 3px var(--lote-ves-bg);
     }
 
     .error {
       margin-top: 12px;
       font-size: 12px;
       font-weight: 600;
-      color: #ef4444;
+      color: var(--g360-danger);
     }
 
     button {
@@ -107,7 +107,7 @@ export class LoginView extends LitElement {
       border: none;
       border-radius: 12px;
       background: var(--g360-accent);
-      color: #06281c;
+      color: var(--g360-on-accent);
       font-size: 14px;
       font-weight: 800;
       cursor: pointer;

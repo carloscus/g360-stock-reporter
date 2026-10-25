@@ -98,8 +98,8 @@ export class StockSearch extends LitElement {
     }
 
     .voice-btn.active {
-      color: #ef4444;
-      background: rgba(239, 68, 68, 0.1);
+      color: var(--g360-danger);
+      background: var(--g360-danger-bg);
       animation: pulse 1.5s infinite;
     }
 
@@ -132,12 +132,12 @@ export class StockSearch extends LitElement {
 
     .result-item:hover,
     .result-item.active {
-      background: rgba(0, 208, 132, 0.1);
+      background: var(--lote-ves-bg);
       border-color: var(--g360-accent);
     }
 
     .result-item.selected {
-      background: rgba(0, 208, 132, 0.14);
+      background: var(--lote-ves-bg);
       border-color: var(--g360-accent);
     }
 
@@ -149,7 +149,7 @@ export class StockSearch extends LitElement {
       height: 18px;
       border-radius: 50%;
       border: 1.5px solid var(--g360-border);
-      color: var(--g360-bg);
+      color: var(--g360-on-accent);
       font-size: 11px;
       font-weight: 800;
       margin-right: 6px;
@@ -189,7 +189,7 @@ export class StockSearch extends LitElement {
       border-radius: 999px;
       border: none;
       background: var(--g360-accent);
-      color: #06281c;
+      color: var(--g360-on-accent);
       font-weight: 800;
       font-size: 12px;
       cursor: pointer;
@@ -222,7 +222,7 @@ export class StockSearch extends LitElement {
       display: inline-block;
       font-size: var(--g360-size-xs);
       font-weight: var(--g360-weight-bold);
-      color: var(--g360-bg);
+      color: var(--g360-on-accent);
       background: var(--g360-accent);
       padding: 4px 8px;
       border-radius: 6px;
@@ -283,18 +283,18 @@ export class StockSearch extends LitElement {
     }
 
     .stock-value.alto {
-      background: rgba(0, 208, 132, 0.2);
-      color: var(--g360-accent);
+      background: var(--g360-success-bg);
+      color: var(--g360-success);
     }
 
     .stock-value.bajo {
-      background: rgba(251, 191, 36, 0.2);
-      color: #fbbf24;
+      background: var(--g360-warning-bg);
+      color: var(--g360-warning);
     }
 
     .stock-value.cero {
-      background: rgba(239, 68, 68, 0.2);
-      color: #ef4444;
+      background: var(--g360-danger-bg);
+      color: var(--g360-danger);
     }
 
     .stock-label {
@@ -328,66 +328,66 @@ export class StockSearch extends LitElement {
       gap: 4px;
       padding: 2px 6px;
       border-radius: 4px;
-      background: rgba(0, 208, 132, 0.1);
-      border: 1px solid rgba(0, 208, 132, 0.2);
+      background: var(--lote-ves-bg);
+      border: 1px solid var(--lote-ves-border);
       font-size: 10px;
       font-weight: 600;
-      color: var(--g360-accent);
+      color: var(--lote-ves);
       white-space: nowrap;
     }
 
     .almacen-chip.inspeccion {
-      background: rgba(245, 158, 11, 0.15);
-      border-color: rgba(245, 158, 11, 0.3);
-      color: #f59e0b;
+      background: var(--lote-121-bg);
+      border-color: var(--lote-121-border);
+      color: var(--lote-121);
     }
 
     .almacen-chip.secundario {
-      background: rgba(14, 165, 233, 0.12);
-      border-color: rgba(14, 165, 233, 0.3);
-      color: #0ea5e9;
+      background: var(--lote-129-bg);
+      border-color: var(--lote-129-border);
+      color: var(--lote-129);
     }
 
     .almacen-chip.predespacho {
-      background: rgba(100, 116, 139, 0.15);
-      border-color: rgba(100, 116, 139, 0.3);
-      color: #94a3b8;
+      background: var(--lote-40-bg);
+      border-color: var(--lote-40-border);
+      color: var(--lote-40);
     }
 
     .almacen-chip.fallback {
-      background: rgba(0, 208, 132, 0.18);
-      border-color: rgba(0, 208, 132, 0.45);
-      color: var(--g360-accent);
+      background: var(--lote-ves-bg);
+      border-color: var(--lote-ves-border);
+      color: var(--lote-ves);
       font-weight: 700;
     }
 
     .almacen-chip.qc {
-      background: rgba(245, 158, 11, 0.2);
-      border-color: rgba(245, 158, 11, 0.45);
-      color: #f59e0b;
+      background: var(--lote-121-bg);
+      border-color: var(--lote-121-border);
+      color: var(--lote-121);
       font-weight: 700;
     }
 
     .almacen-chip.terciario {
-      background: rgba(148, 163, 184, 0.1);
-      border-color: rgba(148, 163, 184, 0.3);
-      color: #94a3b8;
+      background: var(--lote-40-bg);
+      border-color: var(--lote-40-border);
+      color: var(--lote-40);
     }
 
     .almacen-chip.traslado {
-      background: rgba(56, 189, 248, 0.08);
-      border: 1px dashed rgba(56, 189, 248, 0.45);
-      color: #38bdf8;
+      background: var(--lote-129-bg);
+      border: 1px dashed var(--lote-129-border);
+      color: var(--lote-129);
     }
 
     .almacen-chip.exportacion {
-      background: rgba(139, 92, 246, 0.15);
-      border-color: rgba(139, 92, 246, 0.4);
-      color: #a78bfa;
+      background: var(--lote-122-bg);
+      border-color: var(--lote-122-border);
+      color: var(--lote-122);
     }
 
     .almacen-chip.sin-venta {
-      background: rgba(148, 163, 184, 0.1);
+      background: var(--lote-40-bg);
       border-color: var(--g360-border);
       color: var(--g360-muted);
     }
@@ -398,11 +398,11 @@ export class StockSearch extends LitElement {
       margin-top: 6px;
       padding: 2px 8px;
       border-radius: 4px;
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: var(--g360-warning-bg);
+      border: 1px solid var(--g360-warning-border);
       font-size: 10px;
       font-weight: 700;
-      color: #f59e0b;
+      color: var(--g360-warning);
       white-space: nowrap;
     }
 
@@ -413,24 +413,24 @@ export class StockSearch extends LitElement {
       margin-right: 6px;
       padding: 2px 8px;
       border-radius: 4px;
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.35);
+      background: var(--g360-danger-bg);
+      border: 1px solid var(--g360-danger-border);
       font-size: 10px;
       font-weight: 700;
-      color: #ef4444;
+      color: var(--g360-danger);
       white-space: nowrap;
     }
 
     .descontinuado-badge.ultimas {
-      background: rgba(245, 158, 11, 0.15);
-      border-color: rgba(245, 158, 11, 0.35);
-      color: #f59e0b;
+      background: var(--g360-warning-bg);
+      border-color: var(--g360-warning-border);
+      color: var(--g360-warning);
     }
 
     .descontinuado-badge.info {
-      background: rgba(148, 163, 184, 0.12);
-      border-color: rgba(148, 163, 184, 0.32);
-      color: #94a3b8;
+      background: var(--lote-40-bg);
+      border-color: var(--lote-40-border);
+      color: var(--lote-40);
     }
 
     .no-results {
@@ -482,7 +482,7 @@ export class StockSearch extends LitElement {
     }
 
     .sku mark {
-      color: var(--g360-bg);
+      color: var(--g360-on-accent);
       background: rgba(255, 255, 255, 0.2);
       border-radius: 3px;
     }
@@ -517,7 +517,7 @@ export class StockSearch extends LitElement {
     }
 
     .filter-chip.active {
-      background: rgba(0, 208, 132, 0.1);
+      background: var(--lote-ves-bg);
       border-color: var(--g360-accent);
       color: var(--g360-accent);
     }

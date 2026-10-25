@@ -177,6 +177,25 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
 - **PWA**: banner "Nueva versión → Actualizar" al detectar update del SW; safe-areas
   para notch/gestos; sin `orientation` forzada; SW sin requests duplicados al API.
 
+## Paleta y temas
+
+Los componentes **no usan colores sueltos**: todo sale de tokens semánticos
+definidos en `src/styles/main.css` para dark y light (contrastes AA en claro).
+
+| Rol | Dark | Light |
+|-----|------|-------|
+| Acento de marca (VES, CTAs) | `#00d084` | `#047857` |
+| Texto sobre acento | `#06281c` | `#ffffff` |
+| Success / Warning / Danger / Info | `#22c55e` / `#f59e0b` / `#ef4444` / `#3b82f6` | `#15803d` / `#b45309` / `#dc2626` / `#0369a1` |
+| Lote 129 (secundario) | `#38bdf8` | `#0369a1` |
+| Lote 40 (traslado) | `#94a3b8` | `#64748b` |
+| Lote 121 (inspección/QC) | `#fbbf24` | `#b45309` |
+| Lote 122 (exportación) | `#a78bfa` | `#6d28d9` |
+
+Cada lote expone `--lote-<n>`, `--lote-<n>-bg` y `--lote-<n>-border`; los estados
+usan `--g360-success/warning/danger/info` (con `-bg` y `-border`). `skill.json`
+está alineado a la paleta `cipsa-movil`.
+
 ## Modelo enriquecido del API
 
 El frontend consume el `ItemStockEnriched` completo (no solo stock):

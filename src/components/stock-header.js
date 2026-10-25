@@ -121,7 +121,7 @@ export class StockHeader extends LitElement {
       height: 26px;
       border-radius: 50%;
       background: var(--g360-accent);
-      color: #06281c;
+      color: var(--g360-on-accent);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -206,7 +206,7 @@ export class StockHeader extends LitElement {
     }
 
     .menu-item.danger {
-      color: #ef4444;
+      color: var(--g360-danger);
     }
 
     .menu-item svg {

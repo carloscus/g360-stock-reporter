@@ -132,25 +132,25 @@ export class AppRoot extends LitElement {
     }
 
     .data-status.fresh {
-      background: rgba(0, 208, 132, 0.06);
+      background: var(--g360-success-bg);
       color: var(--g360-muted);
     }
 
     .data-status.stale {
-      background: rgba(245, 158, 11, 0.08);
-      color: #f59e0b;
+      background: var(--g360-warning-bg);
+      color: var(--g360-warning);
       animation: status-pulse 2s ease-in-out infinite;
     }
 
     .data-status.waking {
-      background: rgba(14, 165, 233, 0.08);
-      color: #0ea5e9;
+      background: var(--g360-info-bg);
+      color: var(--g360-info);
       animation: status-pulse 1.2s ease-in-out infinite;
     }
 
     .data-status.sin-catalogo {
-      background: rgba(239, 68, 68, 0.08);
-      color: #ef4444;
+      background: var(--g360-danger-bg);
+      color: var(--g360-danger);
     }
 
     @keyframes status-pulse {
@@ -166,21 +166,21 @@ export class AppRoot extends LitElement {
     }
 
     .data-status.fresh .status-dot {
-      background: var(--g360-accent);
+      background: var(--g360-success);
     }
 
     .data-status.stale .status-dot {
-      background: #f59e0b;
+      background: var(--g360-warning);
       animation: dot-blink 1s ease-in-out infinite;
     }
 
     .data-status.waking .status-dot {
-      background: #0ea5e9;
+      background: var(--g360-info);
       animation: dot-blink 0.7s ease-in-out infinite;
     }
 
     .data-status.sin-catalogo .status-dot {
-      background: #ef4444;
+      background: var(--g360-danger);
     }
 
     @keyframes dot-blink {
@@ -288,7 +288,7 @@ export class AppRoot extends LitElement {
 
     .nav-item.active {
       color: var(--g360-accent);
-      background: rgba(0, 208, 132, 0.1);
+      background: var(--lote-ves-bg);
     }
 
     .nav-item .nav-icon {
@@ -315,8 +315,8 @@ export class AppRoot extends LitElement {
       height: 18px;
       padding: 0 5px;
       border-radius: 999px;
-      background: #ef4444;
-      color: #fff;
+      background: var(--g360-danger);
+      color: #ffffff;
       font-size: 10px;
       font-weight: 800;
       display: flex;
@@ -353,12 +353,12 @@ export class AppRoot extends LitElement {
     }
 
     .menu-item:hover {
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--g360-bg);
       color: var(--g360-text);
     }
 
     .menu-item.active {
-      background: rgba(0, 208, 132, 0.15);
+      background: var(--lote-ves-bg);
       color: var(--g360-accent);
     }
 
@@ -432,7 +432,7 @@ export class AppRoot extends LitElement {
       border-radius: 999px;
       padding: 6px 14px;
       background: var(--g360-accent);
-      color: #06281c;
+      color: var(--g360-on-accent);
       font-weight: 800;
       font-size: 12px;
       cursor: pointer;

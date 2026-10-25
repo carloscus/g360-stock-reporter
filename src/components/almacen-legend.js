@@ -54,7 +54,7 @@ export class AlmacenLegend extends LitElement {
     .legend-toggle.active {
       border-color: var(--g360-accent);
       color: var(--g360-accent);
-      background: rgba(0, 208, 132, 0.1);
+      background: var(--lote-ves-bg);
     }
 
     .legend-panel {
@@ -84,39 +84,39 @@ export class AlmacenLegend extends LitElement {
     }
 
     .sw.venta {
-      background: rgba(0, 208, 132, 0.1);
-      border: 1px solid rgba(0, 208, 132, 0.2);
-      color: var(--g360-accent);
+      background: var(--lote-ves-bg);
+      border: 1px solid var(--lote-ves-border);
+      color: var(--lote-ves);
     }
 
     .sw.secundario {
-      background: rgba(14, 165, 233, 0.12);
-      border: 1px solid rgba(14, 165, 233, 0.3);
-      color: #0ea5e9;
+      background: var(--lote-129-bg);
+      border: 1px solid var(--lote-129-border);
+      color: var(--lote-129);
     }
 
     .sw.terciario {
-      background: rgba(148, 163, 184, 0.1);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      color: #94a3b8;
+      background: var(--lote-40-bg);
+      border: 1px solid var(--lote-40-border);
+      color: var(--lote-40);
     }
 
     .sw.inspeccion {
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      color: #f59e0b;
+      background: var(--lote-121-bg);
+      border: 1px solid var(--lote-121-border);
+      color: var(--lote-121);
     }
 
     .sw.exportacion {
-      background: rgba(139, 92, 246, 0.15);
-      border: 1px solid rgba(139, 92, 246, 0.4);
-      color: #a78bfa;
+      background: var(--lote-122-bg);
+      border: 1px solid var(--lote-122-border);
+      color: var(--lote-122);
     }
 
     .sw.predespacho {
-      background: rgba(100, 116, 139, 0.15);
-      border: 1px solid rgba(100, 116, 139, 0.3);
-      color: #94a3b8;
+      background: var(--lote-40-bg);
+      border: 1px solid var(--lote-40-border);
+      color: var(--lote-40);
     }
   `;
 

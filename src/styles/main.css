@@ -57,9 +57,8 @@ app-root {
 }
 
 /* === MODO OSCURO (default) ===
- * Paletas explícitas: NO se usa light-dark() de g360-tokens.css porque viene
- * con los argumentos invertidos (luz=oscuro / oscuro=blanco), lo que dejaba
- * ambos temas casi idénticos. */
+ * Capa semántica: los componentes consumen estos tokens, nunca colores sueltos.
+ * Paletas explícitas (no light-dark() de g360-tokens.css, que viene invertido). */
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -73,9 +72,47 @@ app-root {
   --g360-muted: #8b949e;
   --g360-glass: rgba(21, 30, 46, 0.75);
   --g360-overlay: rgba(11, 18, 32, 0.90);
+
+  /* Marca CIPSA */
+  --g360-accent: #00d084;
+  --g360-accent-strong: #008254;
+  --g360-accent-bright: #34d399;
+  --g360-accent-dark: #008254;
+  --g360-on-accent: #06281c;
+
+  /* Semánticos (fijos en la familia CIPSA) */
+  --g360-success: #22c55e;
+  --g360-success-bg: rgba(34, 197, 94, 0.14);
+  --g360-success-border: rgba(34, 197, 94, 0.38);
+  --g360-warning: #f59e0b;
+  --g360-warning-bg: rgba(245, 158, 11, 0.16);
+  --g360-warning-border: rgba(245, 158, 11, 0.40);
+  --g360-danger: #ef4444;
+  --g360-danger-bg: rgba(239, 68, 68, 0.14);
+  --g360-danger-border: rgba(239, 68, 68, 0.38);
+  --g360-info: #3b82f6;
+  --g360-info-bg: rgba(59, 130, 246, 0.14);
+  --g360-info-border: rgba(59, 130, 246, 0.38);
+
+  /* Lotes (roles de almacén) */
+  --lote-ves: #00d084;
+  --lote-ves-bg: rgba(0, 208, 132, 0.12);
+  --lote-ves-border: rgba(0, 208, 132, 0.35);
+  --lote-129: #38bdf8;
+  --lote-129-bg: rgba(56, 189, 248, 0.14);
+  --lote-129-border: rgba(56, 189, 248, 0.38);
+  --lote-40: #94a3b8;
+  --lote-40-bg: rgba(148, 163, 184, 0.14);
+  --lote-40-border: rgba(148, 163, 184, 0.36);
+  --lote-121: #fbbf24;
+  --lote-121-bg: rgba(251, 191, 36, 0.16);
+  --lote-121-border: rgba(251, 191, 36, 0.40);
+  --lote-122: #a78bfa;
+  --lote-122-bg: rgba(167, 139, 250, 0.16);
+  --lote-122-border: rgba(167, 139, 250, 0.40);
 }
 
-/* === MODO CLARO === */
+/* === MODO CLARO (contrastes AA sobre blanco) === */
 :root[data-theme="light"] {
   color-scheme: light;
   --g360-bg: #ffffff;
@@ -84,13 +121,46 @@ app-root {
   --g360-text: #1f2937;
   --g360-text-muted: #52525b;
   --g360-muted: #52525b;
-  --g360-accent: #00796b;
-  --g360-accent-dark: #005f52;
   --g360-border: rgba(0, 0, 0, 0.1);
   --g360-border-strong: rgba(0, 0, 0, 0.18);
   --g360-glass: rgba(255, 255, 255, 0.75);
   --g360-overlay: rgba(255, 255, 255, 0.92);
   --g360-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  --g360-accent: #047857;
+  --g360-accent-strong: #065f46;
+  --g360-accent-bright: #059669;
+  --g360-accent-dark: #065f46;
+  --g360-on-accent: #ffffff;
+
+  --g360-success: #15803d;
+  --g360-success-bg: rgba(21, 128, 61, 0.12);
+  --g360-success-border: rgba(21, 128, 61, 0.32);
+  --g360-warning: #b45309;
+  --g360-warning-bg: rgba(180, 83, 9, 0.12);
+  --g360-warning-border: rgba(180, 83, 9, 0.32);
+  --g360-danger: #dc2626;
+  --g360-danger-bg: rgba(220, 38, 38, 0.12);
+  --g360-danger-border: rgba(220, 38, 38, 0.32);
+  --g360-info: #0369a1;
+  --g360-info-bg: rgba(3, 105, 161, 0.12);
+  --g360-info-border: rgba(3, 105, 161, 0.32);
+
+  --lote-ves: #047857;
+  --lote-ves-bg: rgba(4, 120, 87, 0.12);
+  --lote-ves-border: rgba(4, 120, 87, 0.32);
+  --lote-129: #0369a1;
+  --lote-129-bg: rgba(3, 105, 161, 0.12);
+  --lote-129-border: rgba(3, 105, 161, 0.32);
+  --lote-40: #64748b;
+  --lote-40-bg: rgba(100, 116, 139, 0.12);
+  --lote-40-border: rgba(100, 116, 139, 0.32);
+  --lote-121: #b45309;
+  --lote-121-bg: rgba(180, 83, 9, 0.12);
+  --lote-121-border: rgba(180, 83, 9, 0.32);
+  --lote-122: #6d28d9;
+  --lote-122-bg: rgba(109, 40, 217, 0.12);
+  --lote-122-border: rgba(109, 40, 217, 0.32);
 }
 
 /* === ANIMACIONES COMPARTIDAS === */

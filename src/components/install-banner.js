@@ -57,7 +57,7 @@ export class InstallBanner extends LitElement {
       height: 34px;
       border-radius: 10px;
       background: var(--g360-accent);
-      color: #06281c;
+      color: var(--g360-on-accent);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -100,7 +100,7 @@ export class InstallBanner extends LitElement {
       flex: 1;
       border: none;
       background: var(--g360-accent);
-      color: #06281c;
+      color: var(--g360-on-accent);
     }
 
     .dismiss {

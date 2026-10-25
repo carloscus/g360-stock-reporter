@@ -44,9 +44,9 @@ export class SinCatalogoPanel extends LitElement {
     }
 
     .badge {
-      background: rgba(245, 158, 11, 0.15);
-      color: #f59e0b;
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: var(--g360-warning-bg);
+      color: var(--g360-warning);
+      border: 1px solid var(--g360-warning-border);
       padding: 4px 12px;
       border-radius: 20px;
       font-size: var(--g360-size-base);
@@ -201,7 +201,7 @@ export class SinCatalogoPanel extends LitElement {
     .item-sku {
       font-size: 12px;
       font-weight: 700;
-      color: #f59e0b;
+      color: var(--g360-warning);
       margin-bottom: 4px;
       letter-spacing: 0.3px;
     }
@@ -233,9 +233,9 @@ export class SinCatalogoPanel extends LitElement {
     }
 
     .tag.precio {
-      background: rgba(0, 208, 132, 0.1);
-      border-color: rgba(0, 208, 132, 0.25);
-      color: var(--g360-accent);
+      background: var(--lote-ves-bg);
+      border-color: var(--lote-ves-border);
+      color: var(--lote-ves);
     }
 
     .item-right {

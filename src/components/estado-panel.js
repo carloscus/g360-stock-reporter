@@ -129,16 +129,16 @@ export class EstadoPanel extends LitElement {
       height: 22px;
       border: none;
       border-radius: 50%;
-      background: rgba(239, 68, 68, 0.12);
-      color: #ef4444;
+      background: var(--g360-danger-bg);
+      color: var(--g360-danger);
       cursor: pointer;
       transition: all 0.15s;
       flex-shrink: 0;
     }
 
     .export-close:hover {
-      background: #ef4444;
-      color: #fff;
+      background: var(--g360-danger);
+      color: #ffffff;
     }
 
     .export-option {
@@ -208,11 +208,11 @@ export class EstadoPanel extends LitElement {
     }
 
     .kpi-card.warning {
-      border-left-color: #f59e0b;
+      border-left-color: var(--g360-warning);
     }
 
     .kpi-card.danger {
-      border-left-color: #ef4444;
+      border-left-color: var(--g360-danger);
     }
 
 
@@ -228,11 +228,11 @@ export class EstadoPanel extends LitElement {
     }
 
     .kpi-card.warning .kpi-value {
-      color: #f59e0b;
+      color: var(--g360-warning);
     }
 
     .kpi-card.danger .kpi-value {
-      color: #ef4444;
+      color: var(--g360-danger);
     }
 
     .kpi-label {
@@ -287,7 +287,7 @@ export class EstadoPanel extends LitElement {
 
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--g360-accent), #00ff88);
+      background: linear-gradient(90deg, var(--g360-accent), var(--g360-accent-bright));
       border-radius: 4px;
       transition: width 0.5s ease;
     }
@@ -423,14 +423,14 @@ export class EstadoPanel extends LitElement {
       align-items: center;
       justify-content: space-between;
       padding: 10px 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--g360-border);
       cursor: pointer;
       transition: background 0.15s;
       border-radius: 6px;
     }
 
     .sku-item:hover {
-      background: rgba(255, 255, 255, 0.02);
+      background: var(--g360-surface);
     }
 
     .sku-item:last-child {
@@ -468,21 +468,21 @@ export class EstadoPanel extends LitElement {
     }
 
     .sku-flag.descontinuado {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.35);
-      color: #ef4444;
+      background: var(--g360-danger-bg);
+      border: 1px solid var(--g360-danger-border);
+      color: var(--g360-danger);
     }
 
     .sku-flag.ultimas {
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.35);
-      color: #f59e0b;
+      background: var(--g360-warning-bg);
+      border: 1px solid var(--g360-warning-border);
+      color: var(--g360-warning);
     }
 
     .sku-flag.info {
-      background: rgba(148, 163, 184, 0.12);
-      border: 1px solid rgba(148, 163, 184, 0.32);
-      color: #94a3b8;
+      background: var(--lote-40-bg);
+      border: 1px solid var(--lote-40-border);
+      color: var(--lote-40);
     }
 
     .sku-right {
@@ -498,11 +498,11 @@ export class EstadoPanel extends LitElement {
     }
 
     .sku-bx.cero {
-      color: #ef4444;
+      color: var(--g360-danger);
     }
 
     .sku-bx.bajo {
-      color: #f59e0b;
+      color: var(--g360-warning);
     }
 
     .sku-units {
@@ -513,7 +513,7 @@ export class EstadoPanel extends LitElement {
     /* === EXPANDED DETAIL === */
     .sku-detail {
       padding: 12px 16px;
-      background: rgba(0, 208, 132, 0.03);
+      background: var(--lote-ves-bg);
       border-left: 2px solid var(--g360-accent);
       margin: 0 0 4px 16px;
       border-radius: 0 6px 6px 0;
@@ -546,22 +546,22 @@ export class EstadoPanel extends LitElement {
       font-size: 10px;
       padding: 3px 8px;
       border-radius: 4px;
-      background: rgba(0, 208, 132, 0.1);
-      border: 1px solid rgba(0, 208, 132, 0.2);
-      color: var(--g360-accent);
+      background: var(--lote-ves-bg);
+      border: 1px solid var(--lote-ves-border);
+      color: var(--lote-ves);
       font-weight: 600;
     }
 
     .almacen-chip.inspeccion {
-      background: rgba(245, 158, 11, 0.1);
-      border-color: rgba(245, 158, 11, 0.3);
-      color: #f59e0b;
+      background: var(--lote-121-bg);
+      border-color: var(--lote-121-border);
+      color: var(--lote-121);
     }
 
     .almacen-chip.exportacion {
-      background: rgba(139, 92, 246, 0.15);
-      border-color: rgba(139, 92, 246, 0.4);
-      color: #a78bfa;
+      background: var(--lote-122-bg);
+      border-color: var(--lote-122-border);
+      color: var(--lote-122);
     }
 
     .empty {

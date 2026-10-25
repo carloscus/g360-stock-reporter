@@ -1,15 +1,15 @@
 {
-  "skill": "corporativo-movil",
+  "skill": "cipsa-movil",
   "device": "movil",
   "template": "converted",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "convertedAt": "2026-04-08T16:08:08.733Z",
   "colors": {
-    "bg": "#0b1220",
-    "surface": "#151e2e",
-    "accent": "#00796B",
-    "text": "#f0f4f8",
-    "muted": "#94a3b8"
+    "bg": "#0d1117",
+    "surface": "#161b22",
+    "accent": "#00d084",
+    "text": "#f0f6fc",
+    "muted": "#8b949e"
   },
   "signature": {
     "mode": "powered",
