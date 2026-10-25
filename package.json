@@ -6,18 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@esbuild/linux-x64": "^0.28.1",
-    "esbuild": "^0.28.1",
     "fuse.js": "^7.4.1",
     "lit": "^3.1.0"
   },
   "devDependencies": {
-    "vite": "^4.5.14"
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   },
   "author": "@carloscus",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.12"
+  },
   "homepage": "https://carloscus.github.io/g360-stock-reporter"
 }

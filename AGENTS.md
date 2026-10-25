@@ -12,12 +12,11 @@ Un solo comando deja el repo listo y verifica que todo esté en verde:
 
 ```bash
 npm ci
-npm run build
+npm test
 ```
 
 - Stack: node (npm)
-- Tests: sin script de test
-- ⚠️ Sin suite de tests: agregá un script `test` con tests de comportamiento.
+- Tests: Vitest
 
 ## Instalación
 
@@ -29,6 +28,7 @@ npm ci
 ## Estructura
 
 - `src/`
+- `tests/`
 - `g360/`
 - `scripts/`
 - `index.html`
