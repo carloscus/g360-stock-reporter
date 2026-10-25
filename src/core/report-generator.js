@@ -4,7 +4,7 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.10.0
+ * @version 1.11.0
  */
 
 let ExcelJS = window.ExcelJS;
@@ -68,12 +68,117 @@ function sheetNameForLinea(linea) {
   return (linea || 'Sin Línea').substring(0, 31);
 }
 
+/** Workbook con metadatos de marca, igual en todos los reportes. */
+function crearWorkbookBase(titulo, autor = null) {
+  const wb = new ExcelJS.Workbook();
+  wb.properties.title = titulo;
+  wb.properties.created = new Date();
+  wb.creator = autor
+    ? `${autor.nombre}${autor.email ? ` <${autor.email}>` : ''}`
+    : 'g360-stock-reporter';
+  wb.lastModifiedBy = 'g360-stock-reporter';
+  return wb;
+}
+
+/** Serializa el workbook a un Blob XLSX listo para descargar. */
+async function blobDesdeWorkbook(wb) {
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+}
+
 /**
- * Crea la hoja "Resumen" con KPIs, totales por categoría y línea.
- * Migrado de createResumenSheet() en generate-reports-excel.cjs.
- * Los totales usan SOLO el disponible VES (lotes 129/40/121 nunca suman).
+ * Escribe la cabecera estándar de una hoja tabular: columnas, autofiltro,
+ * fila congelada y estilo del encabezado (un solo lugar para los 3 reportes).
  */
-function createResumenSheet(ws, productos, autor = null) {
+function crearHojaTabla(ws, headers, { fill = COLORS.primary, border = COLORS.accent, height = 32 } = {}) {
+  ws.columns = headers;
+  ws.autoFilter = `A1:${String.fromCharCode(64 + headers.length)}1`;
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const headerRow = ws.getRow(1);
+  headerRow.height = height;
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+    cell.font = { bold: true, size: 11, color: { argb: COLORS.white } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = { bottom: { style: 'medium', color: { argb: border } } };
+  });
+  return headerRow;
+}
+
+/** Agrupa productos por clave sumando códigos y disponible VES. */
+function agruparProductos(productos, clave) {
+  const grupos = {};
+  productos.forEach((p) => {
+    const key = clave(p);
+    if (!grupos[key]) grupos[key] = { codigos: 0, stock: 0 };
+    grupos[key].codigos++;
+    grupos[key].stock += disponibleVES(p);
+  });
+  return grupos;
+}
+
+/**
+ * Tabla agregada de 4 columnas (categoría o línea).
+ * @returns {number} fila siguiente libre
+ */
+function escribirTablaAgrupada(ws, { titulo, headerLabel, grupos, startRow, totalUnidades, hipervinculo = false }) {
+  let row = startRow;
+
+  ws.mergeCells(`A${row}:D${row}`);
+  ws.getCell(`A${row}`).value = titulo;
+  ws.getCell(`A${row}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
+  ws.getCell(`A${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
+  ws.getCell(`A${row}`).alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(row).height = 26;
+
+  const headerRow = row + 1;
+  [headerLabel, 'Códigos', 'Stock', '%'].forEach((h, i) => {
+    const cell = ws.getCell(`${String.fromCharCode(65 + i)}${headerRow}`);
+    cell.value = h;
+    cell.font = { bold: true, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+    cell.alignment = { horizontal: 'center' };
+  });
+
+  let dataRow = headerRow + 1;
+  Object.entries(grupos).forEach(([nombre, data], idx) => {
+    const pct = totalUnidades > 0 ? ((data.stock / totalUnidades) * 100).toFixed(1) : '0';
+    const color = COLORS.lineColors[idx % COLORS.lineColors.length];
+
+    const cellNombre = ws.getCell(`A${dataRow}`);
+    if (hipervinculo) {
+      cellNombre.value = {
+        text: nombre,
+        hyperlink: `#'${sheetNameForLinea(nombre).replace(/'/g, "''")}'!A1`,
+        tooltip: `Ir a la hoja ${nombre}`,
+      };
+      cellNombre.font = { bold: true, size: 10, color: { argb: color }, underline: true };
+    } else {
+      cellNombre.value = nombre;
+      cellNombre.font = { bold: true, size: 10, color: { argb: color } };
+    }
+
+    ws.getCell(`B${dataRow}`).value = data.codigos;
+    ws.getCell(`B${dataRow}`).alignment = { horizontal: 'center' };
+
+    ws.getCell(`C${dataRow}`).value = data.stock;
+    ws.getCell(`C${dataRow}`).alignment = { horizontal: 'right' };
+
+    ws.getCell(`D${dataRow}`).value = pct + '%';
+    ws.getCell(`D${dataRow}`).alignment = { horizontal: 'center' };
+    ws.getCell(`D${dataRow}`).font = { bold: true, color: { argb: color } };
+
+    dataRow++;
+  });
+
+  return dataRow;
+}
+
+/** Cabecera de marca del Resumen (filas 1-3). */
+function escribirCabeceraResumen(ws, productos, autor) {
   ws.getColumn('A').width = 22;
   ws.getColumn('B').width = 12;
   ws.getColumn('C').width = 15;
@@ -103,22 +208,16 @@ function createResumenSheet(ws, productos, autor = null) {
   ws.getCell('A3').font = { italic: true, size: 9, color: { argb: COLORS.grayText } };
   ws.getCell('A3').alignment = { horizontal: 'center' };
   ws.getRow(3).height = 18;
+}
 
-  // ===== KPI CARDS =====
-  const totalUnidades = productos.reduce(
-    (acc, p) => acc + disponibleVES(p), 0
-  );
+/** KPIs del Resumen: productos, unidades y estados. */
+function escribirKpisResumen(ws, productos) {
+  const totalUnidades = productos.reduce((acc, p) => acc + disponibleVES(p), 0);
   const totalCodigos = productos.length;
 
-  const productosConStock = productos.filter(
-    (p) => disponibleVES(p) > 0
-  );
-  const productosSinStock = productos.filter(
-    (p) => disponibleVES(p) === 0
-  );
+  const productosSinStock = productos.filter((p) => disponibleVES(p) === 0);
   const productosBajoStock = productos.filter((p) => {
-    const stock = disponibleVES(p);
-    const bx = Math.floor(stock / (p.un_bx || 1));
+    const bx = Math.floor(disponibleVES(p) / (p.un_bx || 1));
     return bx > 0 && bx < UMBRAL_BAJO_STOCK;
   });
   const productosOk = totalCodigos - productosSinStock.length - productosBajoStock.length;
@@ -131,7 +230,7 @@ function createResumenSheet(ws, productos, autor = null) {
 
   let rowIdx = 4;
 
-  // KPI Row 1: Total codes and units
+  // KPI Row 1: Total códigos
   ws.mergeCells(`A${rowIdx}:B${rowIdx}`);
   ws.getCell(`A${rowIdx}`).value = '📦 TOTAL PRODUCTOS';
   ws.getCell(`A${rowIdx}`).font = { bold: true, size: 11, color: { argb: COLORS.white } };
@@ -186,101 +285,36 @@ function createResumenSheet(ws, productos, autor = null) {
     rowIdx++;
   }
 
+  return { totalUnidades, nextRow: rowIdx };
+}
+
+/**
+ * Crea la hoja "Resumen" con KPIs, totales por categoría y línea.
+ * Los totales usan SOLO el disponible VES (lotes 129/40/121 nunca suman).
+ */
+function createResumenSheet(ws, productos, autor = null) {
+  escribirCabeceraResumen(ws, productos, autor);
+  const { totalUnidades, nextRow } = escribirKpisResumen(ws, productos);
+
   // ===== POR CATEGORÍA =====
-  rowIdx += 1;
-  ws.mergeCells(`A${rowIdx}:D${rowIdx}`);
-  ws.getCell(`A${rowIdx}`).value = '🏷️ POR CATEGORÍA';
-  ws.getCell(`A${rowIdx}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
-  ws.getCell(`A${rowIdx}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
-  ws.getCell(`A${rowIdx}`).alignment = { vertical: 'middle', horizontal: 'center' };
-  ws.getRow(rowIdx).height = 26;
-
-  const catHeaderRow = rowIdx + 1;
-  ['Categoría', 'Códigos', 'Stock', '%'].forEach((h, i) => {
-    const col = String.fromCharCode(65 + i);
-    const cell = ws.getCell(`${col}${catHeaderRow}`);
-    cell.value = h;
-    cell.font = { bold: true, size: 10 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-    cell.alignment = { horizontal: 'center' };
-  });
-
-  const categorias = {};
-  productos.forEach((p) => {
-    if (!categorias[p.categoria]) categorias[p.categoria] = { codigos: 0, stock: 0 };
-    categorias[p.categoria].codigos++;
-    categorias[p.categoria].stock += disponibleVES(p);
-  });
-
-  let catRow = catHeaderRow + 1;
-  Object.entries(categorias).forEach(([cat, data], idx) => {
-    const pct = totalUnidades > 0 ? ((data.stock / totalUnidades) * 100).toFixed(1) : '0';
-    const color = COLORS.lineColors[idx % COLORS.lineColors.length];
-
-    const cellCat = ws.getCell(`A${catRow}`);
-    cellCat.value = cat;
-    cellCat.font = { bold: true, size: 10, color: { argb: color } };
-
-    ws.getCell(`B${catRow}`).value = data.codigos;
-    ws.getCell(`B${catRow}`).alignment = { horizontal: 'center' };
-
-    ws.getCell(`C${catRow}`).value = data.stock;
-    ws.getCell(`C${catRow}`).alignment = { horizontal: 'right' };
-
-    ws.getCell(`D${catRow}`).value = pct + '%';
-    ws.getCell(`D${catRow}`).alignment = { horizontal: 'center' };
-    ws.getCell(`D${catRow}`).font = { bold: true, color: { argb: color } };
-    catRow++;
+  const categorias = agruparProductos(productos, (p) => p.categoria);
+  const catRow = escribirTablaAgrupada(ws, {
+    titulo: '🏷️ POR CATEGORÍA',
+    headerLabel: 'Categoría',
+    grupos: categorias,
+    startRow: nextRow + 1,
+    totalUnidades,
   });
 
   // ===== POR LÍNEA =====
-  const lineaStart = catRow + 2;
-  ws.mergeCells(`A${lineaStart}:D${lineaStart}`);
-  ws.getCell(`A${lineaStart}`).value = '📂 POR LÍNEA';
-  ws.getCell(`A${lineaStart}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
-  ws.getCell(`A${lineaStart}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
-  ws.getCell(`A${lineaStart}`).alignment = { vertical: 'middle', horizontal: 'center' };
-  ws.getRow(lineaStart).height = 26;
-
-  const lineaHeaderRow = lineaStart + 1;
-  ['Línea', 'Códigos', 'Stock', '%'].forEach((h, i) => {
-    const col = String.fromCharCode(65 + i);
-    const cell = ws.getCell(`${col}${lineaHeaderRow}`);
-    cell.value = h;
-    cell.font = { bold: true, size: 10 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
-    cell.alignment = { horizontal: 'center' };
-  });
-
-  const lineas = {};
-  productos.forEach((p) => {
-    if (!lineas[p.linea]) lineas[p.linea] = { codigos: 0, stock: 0 };
-    lineas[p.linea].codigos++;
-    lineas[p.linea].stock += disponibleVES(p);
-  });
-
-  let lineaRow = lineaHeaderRow + 1;
-  Object.entries(lineas).forEach(([lin, data], idx) => {
-    const pct = totalUnidades > 0 ? ((data.stock / totalUnidades) * 100).toFixed(1) : '0';
-    const color = COLORS.lineColors[idx % COLORS.lineColors.length];
-
-    ws.getCell(`A${lineaRow}`).value = {
-      text: lin,
-      hyperlink: `#'${sheetNameForLinea(lin).replace(/'/g, "''")}'!A1`,
-      tooltip: `Ir a la hoja ${lin}`,
-    };
-    ws.getCell(`A${lineaRow}`).font = { bold: true, size: 10, color: { argb: color }, underline: true };
-
-    ws.getCell(`B${lineaRow}`).value = data.codigos;
-    ws.getCell(`B${lineaRow}`).alignment = { horizontal: 'center' };
-
-    ws.getCell(`C${lineaRow}`).value = data.stock;
-    ws.getCell(`C${lineaRow}`).alignment = { horizontal: 'right' };
-
-    ws.getCell(`D${lineaRow}`).value = pct + '%';
-    ws.getCell(`D${lineaRow}`).alignment = { horizontal: 'center' };
-    ws.getCell(`D${lineaRow}`).font = { bold: true, color: { argb: color } };
-    lineaRow++;
+  const lineas = agruparProductos(productos, (p) => p.linea);
+  const lineaRow = escribirTablaAgrupada(ws, {
+    titulo: '📂 POR LÍNEA',
+    headerLabel: 'Línea',
+    grupos: lineas,
+    startRow: catRow + 2,
+    totalUnidades,
+    hipervinculo: true,
   });
 
   // Pie de página
@@ -318,18 +352,7 @@ function createDataSheet(ws, titulo, productos, includeInspeccion) {
   headers.push({ header: 'Cajas', key: 'bx', width: 8 });
   headers.push({ header: 'Estado', key: 'estado', width: 12 });
 
-  ws.columns = headers;
-  ws.autoFilter = `A1:${String.fromCharCode(64 + headers.length)}1`;
-  ws.views = [{ state: 'frozen', ySplit: 1 }];
-
-  const headerRow = ws.getRow(1);
-  headerRow.height = 32;
-  headerRow.eachCell((cell) => {
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
-    cell.font = { bold: true, size: 11, color: { argb: COLORS.white } };
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-    cell.border = { bottom: { style: 'medium', color: { argb: COLORS.accent } } };
-  });
+  crearHojaTabla(ws, headers);
 
   productos.forEach((p, index) => {
     const stockBase = disponibleVES(p);
@@ -388,19 +411,8 @@ function createSheet122(ws, productos) {
     { header: 'Predespacho 122', key: 'predespacho', width: 16 },
   ];
 
-  ws.columns = headers;
-  ws.autoFilter = `A1:${String.fromCharCode(64 + headers.length)}1`;
-  ws.views = [{ state: 'frozen', ySplit: 1 }];
-
   // Header violeta: identifica la hoja como información específica (122)
-  const headerRow = ws.getRow(1);
-  headerRow.height = 32;
-  headerRow.eachCell((cell) => {
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.export122 } };
-    cell.font = { bold: true, size: 11, color: { argb: COLORS.white } };
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-    cell.border = { bottom: { style: 'medium', color: { argb: COLORS.export122Dark } } };
-  });
+  crearHojaTabla(ws, headers, { fill: COLORS.export122, border: COLORS.export122Dark });
 
   productos.forEach((p, index) => {
     const disp122 = stockEnAlmacen(p, ALMACEN_EXPORTACION);
@@ -470,13 +482,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
 
   filtered.forEach((p) => { if (lastUpdated) p.lastUpdated = lastUpdated; });
 
-  const wb = new ExcelJS.Workbook();
-  wb.properties.title = `StockPulse - ${categoria}`;
-  wb.properties.created = new Date();
-  if (autor) {
-    wb.creator = `${autor.nombre}${autor.email ? ` <${autor.email}>` : ''}`;
-    wb.lastModifiedBy = 'g360-stock-reporter';
-  }
+  const wb = crearWorkbookBase(`StockPulse - ${categoria}`, autor);
 
   // Hoja 1: Resumen (KPIs)
   const wsResumen = wb.addWorksheet('Resumen');
@@ -520,10 +526,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   }
 
   // Browser: writeBuffer → Blob
-  const buffer = await wb.xlsx.writeBuffer();
-  return new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+  return blobDesdeWorkbook(wb);
 }
 
 /**
@@ -539,19 +542,12 @@ export async function generateExport122XLSX(productos, autor = null) {
 
   const en122 = productos.filter(tieneStock122);
 
-  const wb = new ExcelJS.Workbook();
-  wb.properties.title = 'StockPulse 122 (Exportación)';
-  wb.properties.created = new Date();
-  wb.creator = autor ? `${autor.nombre}${autor.email ? ` <${autor.email}>` : ''}` : 'g360-stock-reporter';
-  wb.lastModifiedBy = 'g360-stock-reporter';
+  const wb = crearWorkbookBase('StockPulse 122 (Exportación)', autor);
 
   const ws = wb.addWorksheet('122 (Exportación)');
   createSheet122(ws, sortByOrden(en122));
 
-  const buffer = await wb.xlsx.writeBuffer();
-  return new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+  return blobDesdeWorkbook(wb);
 }
 
 /**
@@ -602,27 +598,13 @@ export async function generateEstadoXLSX(tipo, productos) {
   const filtro = filtros[tipo] || filtros.conStock;
   const items = sortByOrden(productos.filter(filtro));
 
-  const wb = new ExcelJS.Workbook();
-  wb.properties.title = `StockPulse ${labels[tipo]}`;
-  wb.properties.created = new Date();
-  wb.creator = 'g360-stock-reporter';
-  wb.lastModifiedBy = 'g360-stock-reporter';
+  const wb = crearWorkbookBase(`StockPulse ${labels[tipo]}`);
 
   const ws = wb.addWorksheet(labels[tipo]);
 
-  // Definir columnas primero: ExcelJS crea la fila 1 (header) desde `header`.
   const headers = ['SKU', 'Nombre', 'Línea', 'Categoría', 'Cajas', 'Disponible VES', 'Estado'];
   const widths = [14, 40, 20, 18, 10, 16, 12];
-  ws.columns = headers.map((h, i) => ({ header: h, key: `c${i}`, width: widths[i] }));
-
-  const headerRow = ws.getRow(1);
-  headerRow.height = 22;
-  headerRow.eachCell((cell) => {
-    cell.font = { bold: true, color: { argb: COLORS.white } };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
-    cell.alignment = { vertical: 'middle', horizontal: 'center' };
-    cell.border = { bottom: { style: 'medium', color: { argb: COLORS.accent } } };
-  });
+  crearHojaTabla(ws, headers.map((h, i) => ({ header: h, key: `c${i}`, width: widths[i] })), { height: 22 });
 
   for (const p of items) {
     const row = ws.addRow([
@@ -643,12 +625,5 @@ export async function generateEstadoXLSX(tipo, productos) {
     row.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
   }
 
-  ws.autoFilter = { from: ws.getRow(1).getCell(1), to: ws.getRow(1).getCell(7) };
-  // Inmovilizar encabezado
-  ws.views = [{ state: 'frozen', ySplit: 1 }];
-
-  const buffer = await wb.xlsx.writeBuffer();
-  return new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
+  return blobDesdeWorkbook(wb);
 }
