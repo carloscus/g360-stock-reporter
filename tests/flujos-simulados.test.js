@@ -131,6 +131,15 @@ describe('Simulación XLSX', () => {
 
     console.log('[SIM 3] no vigentes:', skus.join(','), '| 122 directo:', filas(directo.worksheets[0]), '| sin stock:', filas(estado.worksheets[0]));
   });
+
+  it('ESCENARIO 4: alertas (sin + bajo stock) en un solo XLSX', async () => {
+    const bajo = producto({ sku: '011019', nombre: 'BALON BASKET', nombre_corto: 'Balón basket', bx: 5, stock: 240, orden: 20 });
+    const wb = await leer(await rg.generateEstadoXLSX('alertas', [VIGENTE, bajo, AGOTADO]));
+
+    expect(wb.worksheets[0].name).toBe('Alertas');
+    expect(filas(wb.worksheets[0])).toBe(2); // bajo + agotado; el vigente (100 bx) no es alerta
+    console.log('[SIM 4] alertas -> filas:', filas(wb.worksheets[0]));
+  });
 });
 
 describe('Simulación búsqueda + compartir', () => {

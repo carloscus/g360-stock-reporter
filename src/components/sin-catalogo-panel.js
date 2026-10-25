@@ -4,7 +4,7 @@
  *              sin coincidencia en catálogo maestro) que aún conservan stock.
  *              Útil para detectar ítems nuevos, sin movimiento o próximos a descontinuar.
  * @author @carloscus
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -41,6 +41,32 @@ export class SinCatalogoPanel extends LitElement {
       display: flex;
       align-items: center;
       gap: 10px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .export-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--g360-border);
+      background: var(--g360-surface);
+      color: var(--g360-text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .export-btn:hover {
+      border-color: var(--g360-accent);
+      color: var(--g360-accent);
     }
 
     .badge {
@@ -315,6 +341,18 @@ export class SinCatalogoPanel extends LitElement {
     this.requestUpdate();
   }
 
+  /** Descarga la hoja "Sin Catálogo" con el universo completo (no filtrado). */
+  async _exportar() {
+    try {
+      const { generateEstadoXLSX, downloadBlob, generarNombreArchivo } = await import('../core/report-generator.js');
+      const productos = this.stockData?.productos || [];
+      const blob = await generateEstadoXLSX('sinCatalogo', productos);
+      downloadBlob(blob, generarNombreArchivo('SinCatalogo'));
+    } catch (error) {
+      console.error('[sin-catalogo] Error exportando XLSX:', error.message);
+    }
+  }
+
   willUpdate(changedProperties) {
     if (changedProperties.has('stockData') && this.stockData) {
       const productos = this.stockData.productos || [];
@@ -369,7 +407,17 @@ export class SinCatalogoPanel extends LitElement {
             ser nuevos, sin movimiento, o próximos a descontinuar / inactivar.
           </p>
         </div>
-        <span class="badge">${this.totalSecundarios} SKUs</span>
+        <div class="header-actions">
+          <span class="badge">${this.totalSecundarios} SKUs</span>
+          <button class="export-btn" @click=${this._exportar}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exportar
+          </button>
+        </div>
       </div>
 
       <div class="summary-cards">

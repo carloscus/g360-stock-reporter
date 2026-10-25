@@ -89,6 +89,7 @@ describe('componentes (smoke de render)', () => {
     document.body.appendChild(el);
     await el.updateComplete;
     expect(el.shadowRoot.textContent).toContain('Sin Catálogo');
+    expect(el.shadowRoot.querySelector('.export-btn')).toBeTruthy();
   });
 
   it('app-root sin sesión muestra el login', async () => {

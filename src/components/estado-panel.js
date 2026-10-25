@@ -4,7 +4,7 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.6.0
+ * @version 4.7.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -61,6 +61,26 @@ export class EstadoPanel extends LitElement {
       padding: 2px 10px;
       font-size: 12px;
       font-weight: 800;
+      margin-left: 6px;
+    }
+
+    .section-download {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--g360-border);
+      background: var(--g360-bg);
+      color: var(--g360-muted);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .section-download:hover {
+      color: var(--g360-accent);
+      border-color: var(--g360-accent);
     }
 
     .export-btn {
@@ -774,6 +794,17 @@ export class EstadoPanel extends LitElement {
     }
   }
 
+  async _exportCategoria(categoria) {
+    try {
+      const { generateReportXLSX, downloadBlob, generarNombreArchivo } = await import('../core/report-generator.js');
+      const productos = this.stockData?.productos || [];
+      const blob = await generateReportXLSX(categoria, productos, {}, '');
+      downloadBlob(blob, generarNombreArchivo(categoria));
+    } catch (error) {
+      console.error('[estado-panel] Error exportando categoría:', error.message);
+    }
+  }
+
   async _exportXLSX(tipo = 'conStock') {
     const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
     try {
@@ -811,8 +842,41 @@ export class EstadoPanel extends LitElement {
 
     return html`
       <div class="header">
-        <h1>🚨 Alertas</h1>
-        <span class="badge-count">${todas.length}</span>
+        <h1>🚨 Alertas <span class="badge-count">${todas.length}</span></h1>
+        <div class="export-wrap">
+          <button class="export-btn" @click=${() => this.exportOpen = !this.exportOpen}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Exportar
+          </button>
+          ${this.exportOpen ? html`
+            <div class="export-menu">
+              <div class="export-menu-header">
+                <span class="export-menu-title">Descargar alertas</span>
+                <button class="export-close" @click=${() => this.exportOpen = false} aria-label="Cerrar">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+              <button class="export-option" @click=${() => this._exportXLSX('alertas')}>
+                <span>Todos</span>
+                <span class="count">${todas.length}</span>
+              </button>
+              <button class="export-option" @click=${() => this._exportXLSX('bajoStock')}>
+                <span>Bajo Stock</span>
+                <span class="count">${bajoStock}</span>
+              </button>
+              <button class="export-option" @click=${() => this._exportXLSX('sinStock')}>
+                <span>Sin Stock</span>
+                <span class="count">${sinStock}</span>
+              </button>
+            </div>
+          ` : ''}
+        </div>
       </div>
 
       <div class="search-box">
@@ -1001,6 +1065,18 @@ export class EstadoPanel extends LitElement {
                 <span class="section-name">${cat.nombre}</span>
                 <span class="section-count">${buscando ? skus.length : cat.skus} SKUs</span>
               </div>
+              <button
+                class="section-download"
+                title="Descargar reporte de ${cat.nombre}"
+                aria-label="Descargar reporte de ${cat.nombre}"
+                @click=${(e) => { e.stopPropagation(); this._exportCategoria(cat.nombre); }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </button>
               
             </div>
             ${expanded ? html`

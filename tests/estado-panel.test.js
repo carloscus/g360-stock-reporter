@@ -59,6 +59,7 @@ describe('estado-panel (render real)', () => {
     btn.click();
     await el.updateComplete;
     expect(el.shadowRoot.querySelector('.export-menu')).toBeTruthy();
+    expect(el.shadowRoot.querySelector('.section-download')).toBeTruthy();
   });
 
   it('las secciones no mezclan descontinuados ni SKUs sin catálogo', async () => {
@@ -87,5 +88,14 @@ describe('estado-panel (render real)', () => {
     expect(texto).toContain('Todos (2)');
     expect(texto).toContain('Bajo Stock (1)');
     expect(texto).toContain('Sin Stock (1)');
+
+    // Exportar alertas disponible desde la propia vista.
+    const exportBtn = el.shadowRoot.querySelector('.export-btn');
+    expect(exportBtn).toBeTruthy();
+    exportBtn.click();
+    await el.updateComplete;
+    const menu = el.shadowRoot.querySelector('.export-menu');
+    expect(menu).toBeTruthy();
+    expect(menu.textContent).toContain('Descargar alertas');
   });
 });

@@ -4,7 +4,7 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.11.0
+ * @version 1.12.0
  */
 
 let ExcelJS = window.ExcelJS;
@@ -588,12 +588,13 @@ export function generarNombreArchivo(categoria) {
 export async function generateEstadoXLSX(tipo, productos) {
   await loadExcelJS();
 
-  const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
+  const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo', alertas: 'Alertas' };
   const filtros = {
     conStock: (p) => (p.bx || 0) >= UMBRAL_BAJO_STOCK,
     bajoStock: (p) => (p.bx || 0) > 0 && (p.bx || 0) < UMBRAL_BAJO_STOCK,
     sinStock: (p) => (p.bx || 0) === 0,
     sinCatalogo: esSinCatalogo,
+    alertas: (p) => (p.bx || 0) < UMBRAL_BAJO_STOCK,
   };
   const filtro = filtros[tipo] || filtros.conStock;
   const items = sortByOrden(productos.filter(filtro));

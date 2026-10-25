@@ -216,6 +216,18 @@ El frontend consume el `ItemStockEnriched` completo (no solo stock):
 > backend designa para badges del frontend.
 
 
+## Exportaciones
+
+| Dónde | Qué descarga |
+|---|---|
+| Dashboard → Exportar | Con stock, Bajo stock, Sin stock, Sin Catálogo y 122 |
+| Dashboard → sección del árbol | Reporte de esa **categoría** (Resumen + hojas por línea) |
+| Alertas → Exportar | Todos (sin + bajo stock), Bajo stock, Sin stock |
+| Sin Catálogo → Exportar | Hoja de SKUs fuera de catálogo |
+
+Todos los XLSX salen del mismo generador (`report-generator.js`); el disponible
+siempre es VES y los lotes 129/40/121/122 se muestran solo como información.
+
 ## Scripts
 
 ```bash
