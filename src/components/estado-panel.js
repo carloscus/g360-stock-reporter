@@ -777,8 +777,12 @@ export class EstadoPanel extends LitElement {
   async _exportXLSX(tipo = 'conStock') {
     const labels = { conStock: 'ConStock', bajoStock: 'BajoStock', sinStock: 'SinStock', sinCatalogo: 'SinCatalogo' };
     try {
-      const { generateEstadoXLSX, downloadBlob, generarNombreArchivo } = await import('../core/report-generator.js');
-      const productos = this.stockData?.productos || [];
+      const { generateEstadoXLSX, downloadBlob } = await import('../core/report-generator.js');
+      // Mismo universo que la vista: catálogo vigente. La hoja Sin Catálogo
+      // necesita justamente los que no están en catálogo.
+      const productos = tipo === 'sinCatalogo'
+        ? (this.stockData?.productos || [])
+        : this._baseProductos();
       const blob = await generateEstadoXLSX(tipo, productos);
       const fecha = new Date().toLocaleString('es-PE', {
         day: '2-digit', month: '2-digit', year: '2-digit',
