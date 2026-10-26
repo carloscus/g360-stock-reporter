@@ -92,6 +92,18 @@ describe('estado-panel (render real)', () => {
     expect(texto).toContain('Revisión');
   });
 
+  it('cierra el menú Exportar al cambiar de modo', async () => {
+    const el = await montar('dashboard');
+    el.exportOpen = true;
+    el.requestUpdate();
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.export-menu')).toBeTruthy();
+
+    el.mode = 'alertas';
+    await el.updateComplete;
+    expect(el.exportOpen).toBe(false);
+  });
+
   it('renderiza alertas con búsqueda y filtros', async () => {
     const el = await montar('alertas');
     const texto = el.shadowRoot.textContent;

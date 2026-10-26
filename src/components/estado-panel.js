@@ -4,7 +4,7 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.11.0
+ * @version 4.11.1
  */
 
 import { LitElement, html, css } from 'lit';
@@ -648,8 +648,12 @@ export class EstadoPanel extends LitElement {
   }
 
   willUpdate(changed) {
-    if (changed.has('mode') && this.mode === 'alertas' && this.filter === 'conStock') {
-      this.filter = 'all';
+    if (changed.has('mode')) {
+      // El menú Exportar es del modo anterior: no debe quedar abierto al cambiar.
+      this.exportOpen = false;
+      if (this.mode === 'alertas' && this.filter === 'conStock') {
+        this.filter = 'all';
+      }
     }
     if (changed.has('stockData') && this.stockData) {
       // Mismo universo para KPIs y alertas: catálogo vigente (sin descontinuados).
