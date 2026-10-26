@@ -19,8 +19,22 @@ beforeAll(async () => {
   rg = await import('../src/core/report-generator.js');
 });
 
+const NOMBRES_ALMACEN = {
+  VES: 'CENTRO LOGISTICO VES',
+  '129': 'CLVES OUTLET',
+  '40': 'ALMACEN PROD. TERMINADOS',
+  '121': 'CLVES INSPECCION',
+  '122': 'CLVES EXPORTACION',
+};
+
 const lote = (almacen, disponible, extra = {}) => ({
-  almacen, disponible, stock: disponible, predespacho: 0, esInspeccion: almacen === '121', ...extra,
+  almacen,
+  nombre: NOMBRES_ALMACEN[almacen] || '',
+  disponible,
+  stock: disponible,
+  predespacho: 0,
+  esInspeccion: almacen === '121',
+  ...extra,
 });
 
 const producto = (over = {}) => ({
@@ -68,6 +82,13 @@ const leer = async (blob) => {
 };
 const headers = (ws) => ws.getRow(1).values.slice(1).map(String);
 const filas = (ws) => ws.rowCount - 1;
+const contiene = (ws, texto) => {
+  let found = false;
+  ws.eachRow((row) => row.eachCell((cell) => {
+    if (String(cell.value ?? '').includes(texto)) found = true;
+  }));
+  return found;
+};
 
 describe('Simulación XLSX', () => {
   it('ESCENARIO 1: reporte rápido (vigente, categorías principales, VES)', async () => {
@@ -83,6 +104,10 @@ describe('Simulación XLSX', () => {
     const resumen = wb.getWorksheet('Resumen');
     expect(String(resumen.getCell('C5').value)).toBe('5,760'); // 4800 + 960
     expect(resumen.getCell('C8').value).toBe(1); // sin stock = AGOTADO
+    // Leyenda de almacenes con nombre oficial (lo envía el API)
+    expect(contiene(resumen, 'LEYENDA DE ALMACENES')).toBe(true);
+    expect(contiene(resumen, 'CENTRO LOGISTICO VES')).toBe(true);
+    expect(contiene(resumen, 'CLVES INSPECCION')).toBe(true);
 
     console.log('[SIM 1] rápido -> hojas:', wb.worksheets.map((w) => w.name).join(' | '), '| filas PELOTAS:', filas(ws));
   });

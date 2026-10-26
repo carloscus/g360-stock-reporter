@@ -5,7 +5,7 @@
  *              Usa stock-store con 3 capas: memoria → sessionStorage → localStorage → API.
  *              Sin dependencias de JSON estáticos (enriquecimiento viene del API).
  * @author @carloscus
- * @version 7.4.0
+ * @version 7.5.0
  */
 
 import { saveData, loadData, isStale, getMeta, INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
@@ -79,6 +79,7 @@ function _extraerAlmacenesVenta(item) {
     .filter((a) => a.tipo === 'venta')
     .map((a) => ({
       almacen: a.almacen,
+      nombre: a.nombre || '',
       disponible: a.disponible || 0,
       stock: a.stock || 0,
       predespacho: a.predespacho || 0,

@@ -3,7 +3,7 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.9.0
+ * @version 3.10.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -1052,7 +1052,11 @@ export class StockSearch extends LitElement {
           const almacenesChips = [...almacenesVenta]
             .sort((x, y) => rankAlmacen(x) - rankAlmacen(y))
             .map(a => html`
-              <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_SECUNDARIO ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}">
+              <span
+                class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_SECUNDARIO ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}"
+                title="${a.almacen}${a.nombre ? ` · ${a.nombre}` : ''}"
+                aria-label="Almacén ${a.almacen}${a.nombre ? `, ${a.nombre}` : ''}: ${a.disponible} disponibles"
+              >
                 ${a.almacen}: ${a.disponible}
               </span>
             `);

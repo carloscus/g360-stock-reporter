@@ -29,7 +29,7 @@ const producto = (over = {}) => ({
   keywords: [],
   orden: 10,
   almacenes_venta: [
-    { almacen: 'VES', disponible: 4800, stock: 4800, predespacho: 0, esInspeccion: false },
+    { almacen: 'VES', nombre: 'CENTRO LOGISTICO VES', disponible: 4800, stock: 4800, predespacho: 0, esInspeccion: false },
   ],
   ...over,
 });
@@ -70,6 +70,9 @@ describe('componentes (smoke de render)', () => {
     el._search();
     await el.updateComplete;
     expect(el.shadowRoot.querySelectorAll('.result-item').length).toBe(1);
+
+    const chip = el.shadowRoot.querySelector('.almacen-chip');
+    expect(chip.getAttribute('title')).toContain('CENTRO LOGISTICO VES');
   });
 
   it('pulso-form renderiza sin campos de identidad', async () => {

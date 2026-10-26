@@ -4,7 +4,7 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.13.0
+ * @version 1.14.0
  */
 
 let ExcelJS = window.ExcelJS;
@@ -318,18 +318,78 @@ function createResumenSheet(ws, productos, autor = null) {
   });
 
   // Pie de página
-  ws.mergeCells(`A${lineaRow + 2}:D${lineaRow + 2}`);
-  ws.getCell(`A${lineaRow + 2}`).value = 'StockPulse - Inteligencia CIPSA';
-  ws.getCell(`A${lineaRow + 2}`).font = { italic: true, size: 9, color: { argb: COLORS.grayText } };
-  ws.getCell(`A${lineaRow + 2}`).alignment = { horizontal: 'center' };
+  const leyendaRow = escribirLeyendaAlmacenes(ws, productos, lineaRow + 2);
+  ws.mergeCells(`A${leyendaRow + 2}:D${leyendaRow + 2}`);
+  ws.getCell(`A${leyendaRow + 2}`).value = 'StockPulse - Inteligencia CIPSA';
+  ws.getCell(`A${leyendaRow + 2}`).font = { italic: true, size: 9, color: { argb: COLORS.grayText } };
+  ws.getCell(`A${leyendaRow + 2}`).alignment = { horizontal: 'center' };
 }
 
+/** Roles comerciales por almacén (para la leyenda del Resumen). */
+const ALMACEN_ROLES = {
+  VES: 'Venta directa',
+  '129': 'Secundario',
+  '40': 'Traslado',
+  '121': 'Inspección/QC',
+  '122': 'Exportación',
+};
+const ORDEN_ALMACENES = ['VES', '129', '40', '121', '122'];
+
 /**
- * Crea la hoja de datos detallados. "Disponible" = disponible VES exacto.
- * Las columnas 129 (Secundario), 40 (Traslado) e 121 (Inspección) son
- * informativas e independientes: visibles solo con el checkbox y nunca
- * suman al Disponible.
+ * Leyenda de almacenes en el Resumen: código, nombre oficial (si el API lo
+ * envía) y rol comercial. Devuelve la fila siguiente libre.
  */
+function escribirLeyendaAlmacenes(ws, productos, startRow) {
+  const almacenes = new Map();
+  for (const p of productos) {
+    for (const a of (p.almacenes_venta || [])) {
+      if (!almacenes.has(a.almacen)) {
+        almacenes.set(a.almacen, { nombre: a.nombre || '', rol: ALMACEN_ROLES[a.almacen] || '' });
+      } else if (!almacenes.get(a.almacen).nombre && a.nombre) {
+        almacenes.get(a.almacen).nombre = a.nombre;
+      }
+    }
+  }
+  if (almacenes.size === 0) return startRow;
+
+  const orden = [...almacenes.keys()].sort((a, b) => {
+    const ia = ORDEN_ALMACENES.indexOf(a);
+    const ib = ORDEN_ALMACENES.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+
+  let row = startRow;
+  ws.mergeCells(`A${row}:D${row}`);
+  ws.getCell(`A${row}`).value = '🏭 LEYENDA DE ALMACENES';
+  ws.getCell(`A${row}`).font = { bold: true, size: 12, color: { argb: COLORS.white } };
+  ws.getCell(`A${row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.dark } };
+  ws.getCell(`A${row}`).alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(row).height = 26;
+
+  const headerRow = row + 1;
+  ['Código', 'Nombre', 'Rol', ''].forEach((h, i) => {
+    const cell = ws.getCell(`${String.fromCharCode(65 + i)}${headerRow}`);
+    cell.value = h;
+    cell.font = { bold: true, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+    cell.alignment = { horizontal: 'center' };
+  });
+
+  let dataRow = headerRow + 1;
+  for (const code of orden) {
+    const data = almacenes.get(code);
+    ws.getCell(`A${dataRow}`).value = code;
+    ws.getCell(`A${dataRow}`).font = { bold: true, size: 10 };
+    ws.getCell(`B${dataRow}`).value = data.nombre || '—';
+    ws.getCell(`C${dataRow}`).value = data.rol || '—';
+    dataRow++;
+  }
+  return dataRow;
+}
+
 /**
  * Crea la hoja de datos detallados.
  * - perfil "rapido": Disponible VES + cajas + estado.

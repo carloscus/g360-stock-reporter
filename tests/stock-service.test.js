@@ -228,9 +228,9 @@ describe('transformAPIResponse (modelo enriquecido)', () => {
       familia: 'FUTBOL',
       categoria: 'VINIBALL',
       almacenes: [
-        { almacen: 'VES', tipo: 'venta', disponible: 1111, stock: 1846, predespacho: 735 },
-        { almacen: '118', tipo: 'mktd', disponible: 10, stock: 10, predespacho: 0 },
-        { almacen: '40', tipo: 'venta', disponible: 36, stock: 36, predespacho: 0 },
+        { almacen: 'VES', nombre: 'CENTRO LOGISTICO VES', tipo: 'venta', disponible: 1111, stock: 1846, predespacho: 735 },
+        { almacen: '118', nombre: 'ALMACEN MARKETING', tipo: 'mktd', disponible: 10, stock: 10, predespacho: 0 },
+        { almacen: '40', nombre: 'ALMACEN PROD. TERMINADOS', tipo: 'venta', disponible: 36, stock: 36, predespacho: 0 },
       ],
       estado_linea: 'NACIONAL',
       linea_id: '01',
@@ -282,6 +282,7 @@ describe('transformAPIResponse (modelo enriquecido)', () => {
     expect(p.stockFisico).toBe(1147);
     expect(p.predespacho).toBe(735);
     expect(p.almacenes_venta.map((a) => a.almacen)).toEqual(['VES', '40']);
+    expect(p.almacenes_venta[0]).toMatchObject({ almacen: 'VES', nombre: 'CENTRO LOGISTICO VES' });
   });
 
   it('propaga enriquecido=false (catálogo no disponible)', () => {

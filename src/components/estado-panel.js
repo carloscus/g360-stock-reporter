@@ -4,7 +4,7 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.8.0
+ * @version 4.9.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -745,7 +745,11 @@ export class EstadoPanel extends LitElement {
           </div>
           <div class="almacen-chips">
             ${(s.almacenes_venta || []).map(a => html`
-              <span class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}">${a.almacen}: ${a.disponible}</span>
+              <span
+                class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}"
+                title="${a.almacen}${a.nombre ? ` · ${a.nombre}` : ''}"
+                aria-label="Almacén ${a.almacen}${a.nombre ? `, ${a.nombre}` : ''}: ${a.disponible} disponibles"
+              >${a.almacen}: ${a.disponible}</span>
             `)}
           </div>
         </div>

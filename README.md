@@ -218,11 +218,10 @@ El frontend consume el `ItemStockEnriched` completo (no solo stock):
 
 ## Pendientes conocidos
 
-- **Nombres de almacén**: el API solo expone códigos (`VES`, `129`, `40`, `121`,
-  `122`); no hay nombre en `AlmacenStock` ni en `/api/v1/almacenes`. Decisión
-  actual: usar solo códigos en la UI. Follow-up: agregar `nombre` al modelo y al
-  endpoint en `g360-stock-api` (requiere que el reporte ERP lo traiga) y
-  consumirlo desde el frontend.
+- **Nombres de almacén**: el API **sí los expone** (`almacenes[].nombre`, p. ej.
+  `VES → CENTRO LOGISTICO VES`, `121 → CLVES INSPECCION`). La UI los muestra en
+  el **tooltip/aria** de los chips (código visible) y el XLSX incluye una
+  **leyenda de almacenes** (código, nombre y rol) en la hoja Resumen.
 
 
 ## Exportaciones
