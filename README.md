@@ -162,10 +162,11 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
 - **Buscador**: número = VES exacto; badges de predespacho y fallbacks (129/40/QC);
   chips por almacén con color por rol + leyenda colapsable compartida
   (`almacen-legend.js`); búsqueda multi-término AND insensible a tildes
-  (`ignoreDiacritics`) + exact SKU/EAN; **búsqueda avanzada** por Grupo, Tipo,
-  Familia, Licencia, Categoría, Línea, Stock y Vigencia; link compartido
-  `?q=SKU` abre la búsqueda ya filtrada; dictado por voz con debounce y errores
-  visibles.
+  (`ignoreDiacritics`) + exact SKU/EAN; **búsqueda avanzada** con facetas
+  multi-select (OR dentro de cada faceta, AND entre facetas) por Grupo, Tipo,
+  Familia, Licencia, Categoría, Línea, Stock y Vigencia; el resultado muestra
+  `grupo · tipo · familia`; link compartido `?q=SKU`; dictado por voz con
+  debounce y errores visibles.
 - **Compartir**: modo "Seleccionar" en el buscador → mensaje compacto de varios
   SKUs (SKU, nombre y Disponible VES) por `navigator.share` (WhatsApp) con
   fallback a `wa.me`/portapapeles. Pensado para PWA móvil, donde compartir texto

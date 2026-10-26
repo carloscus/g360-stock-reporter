@@ -263,17 +263,17 @@ describe('Simulación búsqueda + compartir', () => {
 
   it('ESCENARIO F: búsqueda avanzada por tipo y licencia', async () => {
     el.advancedOpen = true;
-    el.facetas = { ...el.facetas, tipo: 'VINIFAN TAPA FANTASIA' };
+    el.facetas = { ...el.facetas, tipo: ['VINIFAN TAPA FANTASIA'] };
     el._search();
     await el.updateComplete;
     expect(el.results.map((r) => r.p.sku)).toEqual(['015939']);
 
-    el.facetas = { ...el.facetas, tipo: '', licencia: 'sin' };
+    el.facetas = { ...el.facetas, tipo: [], licencia: ['sin'] };
     el._search();
     await el.updateComplete;
     expect(el.results.map((r) => r.p.sku)).toEqual(['015939']);
 
-    el.facetas = { ...el.facetas, licencia: 'con' };
+    el.facetas = { ...el.facetas, licencia: ['con'] };
     el._search();
     await el.updateComplete;
     expect(el.results).toHaveLength(0);

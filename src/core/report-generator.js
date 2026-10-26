@@ -4,7 +4,7 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.17.0
+ * @version 1.18.0
  */
 
 let ExcelJS = window.ExcelJS;
@@ -397,7 +397,7 @@ function escribirLeyendaAlmacenes(ws, productos, startRow) {
  * - perfil "completo": agrega columnas de todos los lotes (129/40/121/122),
  *   predespacho y revisión. Los lotes son informativos y nunca suman al VES.
  */
-function createDataSheet(ws, titulo, productos, { perfil = 'rapido', incluirLotes = false } = {}) {
+function createDataSheet(ws, titulo, productos, { perfil = 'rapido' } = {}) {
   const completo = perfil === 'completo';
 
   const headers = [
@@ -417,12 +417,6 @@ function createDataSheet(ws, titulo, productos, { perfil = 'rapido', incluirLote
       { header: '122 (Exportación)', key: 'export122', width: 16 },
       { header: 'Predespacho', key: 'predespacho', width: 14 },
       { header: 'Revisión', key: 'revision', width: 14 },
-    );
-  } else if (incluirLotes) {
-    headers.push(
-      { header: '129 (Secundario)', key: 'secundario', width: 16 },
-      { header: '40 (Traslado)', key: 'traslado', width: 16 },
-      { header: '121 (Inspección)', key: 'inspeccion', width: 16 },
     );
   }
 
@@ -454,10 +448,6 @@ function createDataSheet(ws, titulo, productos, { perfil = 'rapido', incluirLote
       rowData.export122 = stockEnAlmacen(p, ALMACEN_EXPORTACION);
       rowData.predespacho = p.predespacho ?? 0;
       rowData.revision = p.revision || '—';
-    } else if (incluirLotes) {
-      rowData.secundario = stockEnAlmacen(p, ALMACEN_SECUNDARIO);
-      rowData.traslado = stockEnAlmacen(p, ALMACEN_TRASLADO);
-      rowData.inspeccion = inspeccionStock;
     }
 
     rowData.stock = stockBase;
@@ -469,9 +459,7 @@ function createDataSheet(ws, titulo, productos, { perfil = 'rapido', incluirLote
     // Color coding de columnas informativas + estado (mismo criterio por fila)
     const coloredKeys = completo
       ? ['secundario', 'inspSecundaria', 'traslado', 'inspeccion', 'export122', 'predespacho', 'revision', 'stock', 'bx', 'estado']
-      : incluirLotes
-        ? ['secundario', 'traslado', 'inspeccion', 'stock', 'bx', 'estado']
-        : ['stock', 'bx', 'estado'];
+      : ['stock', 'bx', 'estado'];
 
     headers.forEach((h, idx) => {
       if (coloredKeys.includes(h.key)) {
@@ -540,13 +528,11 @@ function createSheet122(ws, productos) {
  *
  * @param {string} categoria        - 'TODOS', 'VINIBALL', 'VINIFAN', 'REPRESENTADAS'
  * @param {Array}  productos        - productos enriquecidos (stock-service.js)
- * @param {Object} options          - { perfil, incluirLotes, includeSecundarios,
+ * @param {Object} options          - { perfil, includeSecundarios,
  *                                      includeExport122, incluirNoVigentes, linea, autor }
  *                                    perfil: 'rapido' (Disponible VES) o 'completo'
- *                                    (todos los lotes 129/40/121/122 + predespacho
+ *                                    (todos los lotes 129/92/40/121/122 + predespacho
  *                                    + revisión, como columnas).
- *                                    incluirLotes: agrega 129/40/121 en perfil rápido
- *                                    (compatibilidad); en completo ya vienen.
  *                                    includeExport122: agrega hoja adicional
  *                                    "122 (Exportación)" con disponible/predespacho
  *                                    de ese almacén (solo informativa).
@@ -558,7 +544,6 @@ function createSheet122(ws, productos) {
 export async function generateReportXLSX(categoria, productos, options = {}, lastUpdated = '') {
   const {
     perfil = 'rapido',
-    incluirLotes = false,
     includeSecundarios = false,
     includeExport122 = false,
     incluirNoVigentes = false,
@@ -590,7 +575,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
   Object.entries(lineas).forEach(([linea, items]) => {
     const sheetName = sheetNameForLinea(linea);
     const wsLinea = wb.addWorksheet(sheetName);
-    createDataSheet(wsLinea, linea, sortByOrden(items), { perfil, incluirLotes });
+    createDataSheet(wsLinea, linea, sortByOrden(items), { perfil });
   });
 
   // Hoja adicional: SKUs fuera de catálogo (solo categorías principales)
@@ -602,7 +587,7 @@ export async function generateReportXLSX(categoria, productos, options = {}, las
     );
     if (secundarios.length > 0) {
       const wsSinCat = wb.addWorksheet('Sin Catálogo');
-      createDataSheet(wsSinCat, 'Sin Catálogo', sortByOrden(secundarios), { perfil, incluirLotes });
+      createDataSheet(wsSinCat, 'Sin Catálogo', sortByOrden(secundarios), { perfil });
     }
   }
 

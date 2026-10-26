@@ -3,7 +3,7 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.13.0
+ * @version 3.14.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -261,6 +261,16 @@ export class StockSearch extends LitElement {
       letter-spacing: 0.5px;
     }
 
+    .detalle {
+      display: block;
+      font-size: 10px;
+      color: var(--g360-muted);
+      margin-top: 2px;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
     .result-right {
       display: flex;
       align-items: center;
@@ -453,23 +463,50 @@ export class StockSearch extends LitElement {
     }
 
     .facet {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
       font-size: 10px;
       font-weight: 600;
       color: var(--g360-muted);
     }
 
-    .facet select {
-      padding: 7px 8px;
+    .facet summary {
+      cursor: pointer;
+      padding: 6px 8px;
       border-radius: 8px;
       border: 1px solid var(--g360-border);
       background: var(--g360-surface);
       color: var(--g360-text);
       font-size: 11px;
-      font-family: inherit;
+      list-style: none;
     }
+
+    .facet summary::-webkit-details-marker { display: none; }
+
+    .facet-options {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 140px;
+      overflow: auto;
+      margin-top: 4px;
+      padding: 6px;
+      border: 1px solid var(--g360-border);
+      border-radius: 8px;
+      background: var(--g360-surface);
+    }
+
+    .facet-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--g360-text);
+      cursor: pointer;
+    }
+
+    .facet-option input { accent-color: var(--g360-accent); }
+
+    .facet-empty { font-size: 10px; color: var(--g360-muted); }
 
     .clear-facets {
       align-self: end;
@@ -536,8 +573,8 @@ export class StockSearch extends LitElement {
     this.autor = '';
     this.advancedOpen = false;
     this.facetas = {
-      grupo: '', tipo: '', familia: '', categoria: '', linea: '',
-      licencia: '', stock: '', vigencia: '',
+      grupo: [], tipo: [], familia: [], categoria: [], linea: [],
+      licencia: [], stock: [], vigencia: [],
     };
     this._selected = new Set();
     this._shareMsg = '';
@@ -699,20 +736,30 @@ export class StockSearch extends LitElement {
   }
 
   _facetasActivas() {
-    return Object.values(this.facetas || {}).some((v) => v !== '');
+    return Object.values(this.facetas || {}).some((v) => Array.isArray(v) ? v.length > 0 : v !== '');
   }
 
   _pasaFacetas(p) {
     const f = this.facetas || {};
-    if (f.grupo && p.grupo !== f.grupo) return false;
-    if (f.tipo && p.tipo !== f.tipo) return false;
-    if (f.familia && p.familia !== f.familia) return false;
-    if (f.categoria && p.categoria !== f.categoria) return false;
-    if (f.linea && p.linea !== f.linea) return false;
-    if (f.licencia && this._licencia(p) !== f.licencia) return false;
-    if (f.stock === 'ves' && !((p.stock || 0) > 0)) return false;
-    if (f.stock === 'any' && !((p.almacenes_venta || []).some((a) => (a.disponible || 0) > 0))) return false;
-    if (f.vigencia === 'vigente' && (p.descontinuado || p.vigente === false)) return false;
+    const en = (campo, valor) => !(f[campo] || []).length || (f[campo] || []).includes(valor);
+
+    if (!en('grupo', p.grupo || '')) return false;
+    if (!en('tipo', p.tipo || '')) return false;
+    if (!en('familia', p.familia || '')) return false;
+    if (!en('categoria', p.categoria || '')) return false;
+    if (!en('linea', p.linea || '')) return false;
+    if (!en('licencia', this._licencia(p))) return false;
+
+    const stock = f.stock || [];
+    if (stock.length) {
+      const okVes = stock.includes('ves') && (p.stock || 0) > 0;
+      const okAny = stock.includes('any') && (p.almacenes_venta || []).some((a) => (a.disponible || 0) > 0);
+      if (!okVes && !okAny) return false;
+    }
+
+    const vigencia = f.vigencia || [];
+    if (vigencia.includes('vigente') && (p.descontinuado || p.vigente === false)) return false;
+
     return true;
   }
 
@@ -730,14 +777,47 @@ export class StockSearch extends LitElement {
   }
 
   _renderFaceta(label, campo) {
+    const opciones = this._opciones(campo);
+    const seleccion = this.facetas[campo] || [];
+
     return html`
-      <label class="facet">
-        <span>${label}</span>
-        <select .value=${this.facetas[campo] || ''} @change=${(e) => this._setFaceta(campo, e.target.value)}>
-          <option value="">Todos</option>
-          ${this._opciones(campo).map((v) => html`<option value=${v}>${v}</option>`)}
-        </select>
-      </label>
+      <details class="facet">
+        <summary>${label}${seleccion.length ? ` (${seleccion.length})` : ''}</summary>
+        <div class="facet-options">
+          ${opciones.length === 0 ? html`<span class="facet-empty">Sin valores</span>` : ''}
+          ${opciones.map((v) => html`
+            <label class="facet-option">
+              <input
+                type="checkbox"
+                .checked=${seleccion.includes(v)}
+                @change=${() => this._toggleFaceta(campo, v)}
+              />
+              <span>${v}</span>
+            </label>
+          `)}
+        </div>
+      </details>
+    `;
+  }
+
+  _renderFacetaFija(label, campo, opciones) {
+    const seleccion = this.facetas[campo] || [];
+    return html`
+      <details class="facet">
+        <summary>${label}${seleccion.length ? ` (${seleccion.length})` : ''}</summary>
+        <div class="facet-options">
+          ${opciones.map(({ valor, texto }) => html`
+            <label class="facet-option">
+              <input
+                type="checkbox"
+                .checked=${seleccion.includes(valor)}
+                @change=${() => this._toggleFaceta(campo, valor)}
+              />
+              <span>${texto}</span>
+            </label>
+          `)}
+        </div>
+      </details>
     `;
   }
 
@@ -745,15 +825,19 @@ export class StockSearch extends LitElement {
     this.advancedOpen = !this.advancedOpen;
   }
 
-  _setFaceta(campo, valor) {
-    this.facetas = { ...this.facetas, [campo]: valor };
+  _toggleFaceta(campo, valor) {
+    const actuales = this.facetas[campo] || [];
+    const siguientes = actuales.includes(valor)
+      ? actuales.filter((v) => v !== valor)
+      : [...actuales, valor];
+    this.facetas = { ...this.facetas, [campo]: siguientes };
     this._search();
   }
 
   _limpiarFacetas() {
     this.facetas = {
-      grupo: '', tipo: '', familia: '', categoria: '', linea: '',
-      licencia: '', stock: '', vigencia: '',
+      grupo: [], tipo: [], familia: [], categoria: [], linea: [],
+      licencia: [], stock: [], vigencia: [],
     };
     this._search();
   }
@@ -1104,29 +1188,17 @@ export class StockSearch extends LitElement {
           ${this._renderFaceta('Familia', 'familia')}
           ${this._renderFaceta('Categoría', 'categoria')}
           ${this._renderFaceta('Línea', 'linea')}
-          <label class="facet">
-            <span>Licencia</span>
-            <select .value=${this.facetas.licencia} @change=${(e) => this._setFaceta('licencia', e.target.value)}>
-              <option value="">Todas</option>
-              <option value="con">Con licencia</option>
-              <option value="sin">Sin licencia</option>
-            </select>
-          </label>
-          <label class="facet">
-            <span>Stock</span>
-            <select .value=${this.facetas.stock} @change=${(e) => this._setFaceta('stock', e.target.value)}>
-              <option value="">Todos</option>
-              <option value="ves">Con stock VES</option>
-              <option value="any">Con stock en cualquier almacén</option>
-            </select>
-          </label>
-          <label class="facet">
-            <span>Vigencia</span>
-            <select .value=${this.facetas.vigencia} @change=${(e) => this._setFaceta('vigencia', e.target.value)}>
-              <option value="">Todas</option>
-              <option value="vigente">Solo vigentes</option>
-            </select>
-          </label>
+          ${this._renderFacetaFija('Licencia', 'licencia', [
+            { valor: 'con', texto: 'Con licencia' },
+            { valor: 'sin', texto: 'Sin licencia' },
+          ])}
+          ${this._renderFacetaFija('Stock', 'stock', [
+            { valor: 'ves', texto: 'Con stock VES' },
+            { valor: 'any', texto: 'Con stock en cualquier almacén' },
+          ])}
+          ${this._renderFacetaFija('Vigencia', 'vigencia', [
+            { valor: 'vigente', texto: 'Solo vigentes' },
+          ])}
           <button class="clear-facets" @click=${this._limpiarFacetas}>Limpiar filtros</button>
         </div>
       ` : ''}
@@ -1195,6 +1267,9 @@ export class StockSearch extends LitElement {
                 <span class="sku">${unsafeHTML(sku)}</span>
                 <span class="nombre">${unsafeHTML(nombre)}</span>
                 <span class="linea">${unsafeHTML(linea)}</span>
+                ${(p.grupo || p.tipo || p.familia) ? html`
+                  <span class="detalle">${[p.grupo, p.tipo, p.familia].filter(Boolean).join(' · ')}</span>
+                ` : ''}
                  <div class="almacenes-row">
                    ${mostrarFallback129 ? html`<span class="almacen-chip fallback">Atendible del 129: ${secundarioStock}</span>` : ''}
                    ${mostrarTraslado40 ? html`<span class="almacen-chip traslado">Trasladable del 40: ${trasladoLabel}</span>` : ''}
