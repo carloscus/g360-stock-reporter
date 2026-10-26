@@ -4,11 +4,12 @@
  *              sin coincidencia en catálogo maestro) que aún conservan stock.
  *              Útil para detectar ítems nuevos, sin movimiento o próximos a descontinuar.
  * @author @carloscus
- * @version 1.2.0
+ * @version 1.3.0
  */
 
 import { LitElement, html, css } from 'lit';
 import { etiquetaStock, esSinCatalogo, esPorUnidades } from '../core/stock-service.js';
+import { descargarSinCatalogo } from '../core/report-downloads.js';
 
 export class SinCatalogoPanel extends LitElement {
   static properties = {
@@ -344,10 +345,7 @@ export class SinCatalogoPanel extends LitElement {
   /** Descarga la hoja "Sin Catálogo" con el universo completo (no filtrado). */
   async _exportar() {
     try {
-      const { generateEstadoXLSX, downloadBlob, generarNombreArchivo } = await import('../core/report-generator.js');
-      const productos = this.stockData?.productos || [];
-      const blob = await generateEstadoXLSX('sinCatalogo', productos);
-      downloadBlob(blob, generarNombreArchivo('SinCatalogo'));
+      await descargarSinCatalogo(this.stockData?.productos || []);
     } catch (error) {
       console.error('[sin-catalogo] Error exportando XLSX:', error.message);
     }

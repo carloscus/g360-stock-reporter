@@ -8,15 +8,12 @@
  * @version 1.0.0
  */
 
-import { esCatalogo } from './stock-service.js';
+import { esCatalogo, esVigente } from './stock-service.js';
+
+export { esVigente };
 
 /** Categorías de negocio incluidas cuando el alcance es "TODOS". */
 export const CATEGORIAS_TODOS = ['REPRESENTADAS', 'VINIFAN', 'VINIBALL'];
-
-/** Un producto vigente no está descontinuado ni inactivo en el ERP. */
-export function esVigente(producto) {
-  return !producto?.descontinuado && producto?.vigente !== false;
-}
 
 /**
  * Filtra el universo de productos para un reporte.

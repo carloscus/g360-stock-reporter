@@ -5,7 +5,7 @@
  *              Usa stock-store con 3 capas: memoria → sessionStorage → localStorage → API.
  *              Sin dependencias de JSON estáticos (enriquecimiento viene del API).
  * @author @carloscus
- * @version 7.5.0
+ * @version 7.6.0
  */
 
 import { saveData, loadData, isStale, getMeta, INSPECCION_ALMACEN, ALMACEN_PRINCIPAL, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
@@ -410,6 +410,21 @@ export function esCatalogo(producto) {
  */
 export function esSinCatalogo(producto) {
   return !esCatalogo(producto);
+}
+
+/** Un producto vigente no está descontinuado ni inactivo en el ERP. */
+export function esVigente(producto) {
+  return !producto?.descontinuado && producto?.vigente !== false;
+}
+
+/** Universo accionable: catálogo maestro + vigente (sin descontinuados). */
+export function productosBase(productos) {
+  return (productos || []).filter((p) => esCatalogo(p) && esVigente(p));
+}
+
+/** Alertas de reposición: SKUs base con menos de UMBRAL_BAJO_STOCK cajas. */
+export function contarAlertas(productos, umbral = UMBRAL_BAJO_STOCK) {
+  return productosBase(productos).filter((p) => (p.bx ?? 0) < umbral).length;
 }
 
 const REVISION_LABELS = {

@@ -3,7 +3,7 @@
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.5.0
+ * @version 3.6.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -14,6 +14,10 @@ export class PulsoForm extends LitElement {
     isGenerating: { type: Boolean },
     showModal: { type: Boolean },
     perfil: { type: String },
+    advanced: { type: Boolean },
+    categoriaInicial: { type: String },
+    lineaInicial: { type: String },
+    advancedInicial: { type: Boolean },
     includeSecundarios: { type: Boolean },
     includeExport122: { type: Boolean },
     incluirNoVigentes: { type: Boolean },
@@ -51,6 +55,44 @@ export class PulsoForm extends LitElement {
 
     .guide-toggle:hover {
       border-color: var(--g360-accent);
+    }
+
+    .advanced-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      padding: 9px 12px;
+      margin-bottom: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--g360-border);
+      background: var(--g360-bg);
+      color: var(--g360-text);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .advanced-toggle.active {
+      border-color: var(--g360-accent);
+      color: var(--g360-accent);
+    }
+
+    .advanced-toggle .chev {
+      margin-left: auto;
+      color: var(--g360-muted);
+      transition: transform 0.2s;
+    }
+
+    .advanced-toggle.active .chev {
+      transform: rotate(180deg);
+    }
+
+    .quick-note {
+      margin: 0 0 12px;
+      font-size: 11px;
+      color: var(--g360-muted);
     }
 
     .guide-toggle .chev {
@@ -442,6 +484,9 @@ export class PulsoForm extends LitElement {
     this.isGenerating = false;
     this.showModal = false;
     this.perfil = 'rapido';
+    this.categoriaInicial = '';
+    this.lineaInicial = '';
+    this.advancedInicial = false;
     this.includeSecundarios = false;
     this.includeExport122 = false;
     this.incluirNoVigentes = false;
@@ -452,10 +497,31 @@ export class PulsoForm extends LitElement {
     this._blob = null;
     this._filename = '';
     try {
+      this.advanced = localStorage.getItem('g360_advanced_v1') === '1';
+    } catch {
+      this.advanced = false;
+    }
+    try {
       this.showGuide = localStorage.getItem('g360_guide_v1') !== '0';
     } catch {
       this.showGuide = true;
     }
+  }
+
+  willUpdate(changed) {
+    if (changed.has('categoriaInicial') && this.categoriaInicial) {
+      this.categoria = this.categoriaInicial;
+      this.linea = this.lineaInicial || '';
+      if (this.advancedInicial) this.advanced = true;
+      this.dispatchEvent(new CustomEvent('prefill-consumed', { bubbles: true, composed: true }));
+    }
+  }
+
+  _toggleAdvanced() {
+    this.advanced = !this.advanced;
+    try {
+      localStorage.setItem('g360_advanced_v1', this.advanced ? '1' : '0');
+    } catch { /* almacenamiento no disponible */ }
   }
 
   _handleCategory(cat) {
@@ -489,20 +555,22 @@ export class PulsoForm extends LitElement {
     this.errorMsg = '';
     try {
       const { generateReportXLSX, generarNombreArchivo } = await import('../core/report-generator.js');
+      const avanzadas = this.advanced;
+      const perfil = avanzadas ? this.perfil : 'rapido';
       this._blob = await generateReportXLSX(
         this.categoria,
         this.stockData.productos,
         {
-          perfil: this.perfil,
-          includeSecundarios: this.includeSecundarios,
-          includeExport122: this.includeExport122,
-          incluirNoVigentes: this.incluirNoVigentes,
-          linea: this.linea,
+          perfil,
+          includeSecundarios: avanzadas ? this.includeSecundarios : false,
+          includeExport122: avanzadas ? this.includeExport122 : false,
+          incluirNoVigentes: avanzadas ? this.incluirNoVigentes : false,
+          linea: avanzadas ? this.linea : '',
           autor: this.autor || null,
         },
         this.stockData.lastUpdated || '',
       );
-      this._filename = generarNombreArchivo(this.categoria);
+      this._filename = generarNombreArchivo(this.categoria, perfil);
       this.showModal = true;
     } catch (error) {
       console.error('[pulso-form] Error generando XLSX:', error);
@@ -582,10 +650,9 @@ export class PulsoForm extends LitElement {
           Cómo Usar
         </div>
         <ol>
-          <li>Selecciona la categoría del reporte (y una línea si quieres acotarlo)</li>
-          <li>El reporte rápido incluye solo catálogo vigente (sin descontinuados)</li>
-          <li>Presiona "Generar Inventario Real-Time" y luego "DESCARGAR AHORA"</li>
-          <li>Elige el perfil: Rápido (Disponible VES) o Completo (todos los almacenes)</li>
+          <li>Selecciona la categoría y presiona "Descargar reporte" (perfil rápido)</li>
+          <li>La descarga rápida incluye catálogo vigente y Disponible VES</li>
+          <li>Opcional: activa "Opciones avanzadas" para perfil completo, línea, no vigentes u hojas extra</li>
           <li>Opcional: activa "Incluir hoja 122 (Exportación)" para una hoja adicional con el disponible/predespacho de ese almacén</li>
           <li>Opcional: activa "Incluir SKUs fuera de catálogo" para exportar esos ítems en una hoja adicional</li>
         </ol>
@@ -609,52 +676,65 @@ export class PulsoForm extends LitElement {
             </div>
           </div>
 
-          ${lineas.length > 1 ? html`
+          <button
+            type="button"
+            class="advanced-toggle ${this.advanced ? 'active' : ''}"
+            @click=${this._toggleAdvanced}
+          >
+            ⚙ Opciones avanzadas
+            <span class="chev" aria-hidden="true">▾</span>
+          </button>
+
+          ${this.advanced ? html`
+            ${lineas.length > 1 ? html`
+              <div class="field">
+                <label class="label">Alcance por línea</label>
+                <select class="select-input" @change=${(e) => this.linea = e.target.value}>
+                  <option value="" ?selected=${!this.linea}>Todas las líneas</option>
+                  ${lineas.map((l) => html`
+                    <option value=${l} ?selected=${this.linea === l}>${l}</option>
+                  `)}
+                </select>
+              </div>
+            ` : ''}
+
             <div class="field">
-              <label class="label">Alcance por línea</label>
-              <select class="select-input" @change=${(e) => this.linea = e.target.value}>
-                <option value="" ?selected=${!this.linea}>Todas las líneas</option>
-                ${lineas.map((l) => html`
-                  <option value=${l} ?selected=${this.linea === l}>${l}</option>
-                `)}
+              <label class="label">Perfil de reporte</label>
+              <select class="select-input" @change=${(e) => this.perfil = e.target.value}>
+                <option value="rapido" ?selected=${this.perfil === 'rapido'}>Rápido · Disponible VES</option>
+                <option value="completo" ?selected=${this.perfil === 'completo'}>Completo · todos los almacenes</option>
               </select>
             </div>
-          ` : ''}
-
-          <div class="field">
-            <label class="label">Perfil de reporte</label>
-            <select class="select-input" @change=${(e) => this.perfil = e.target.value}>
-              <option value="rapido" ?selected=${this.perfil === 'rapido'}>Rápido · Disponible VES</option>
-              <option value="completo" ?selected=${this.perfil === 'completo'}>Completo · todos los almacenes</option>
-            </select>
-          </div>
-          <div class="checkbox-row ${this.includeSecundarios ? 'checked' : ''}" @click=${() => this.includeSecundarios = !this.includeSecundarios}>
-            <input
-              type="checkbox"
-              .checked=${this.includeSecundarios}
-              @change=${(e) => this.includeSecundarios = e.target.checked}
-              @click=${(e) => e.stopPropagation()}
-            />
-            <label>Incluir SKUs fuera de catálogo (hoja adicional)</label>
-          </div>
-          <div class="checkbox-row ${this.includeExport122 ? 'checked' : ''}" @click=${() => this.includeExport122 = !this.includeExport122}>
-            <input
-              type="checkbox"
-              .checked=${this.includeExport122}
-              @change=${(e) => this.includeExport122 = e.target.checked}
-              @click=${(e) => e.stopPropagation()}
-            />
-            <label>Incluir hoja 122 (Exportación)</label>
-          </div>
-          <div class="checkbox-row ${this.incluirNoVigentes ? 'checked' : ''}" @click=${() => this.incluirNoVigentes = !this.incluirNoVigentes}>
-            <input
-              type="checkbox"
-              .checked=${this.incluirNoVigentes}
-              @change=${(e) => this.incluirNoVigentes = e.target.checked}
-              @click=${(e) => e.stopPropagation()}
-            />
-            <label>Incluir descontinuados / no vigentes</label>
-          </div>
+            <div class="checkbox-row ${this.includeSecundarios ? 'checked' : ''}" @click=${() => this.includeSecundarios = !this.includeSecundarios}>
+              <input
+                type="checkbox"
+                .checked=${this.includeSecundarios}
+                @change=${(e) => this.includeSecundarios = e.target.checked}
+                @click=${(e) => e.stopPropagation()}
+              />
+              <label>Incluir SKUs fuera de catálogo (hoja adicional)</label>
+            </div>
+            <div class="checkbox-row ${this.includeExport122 ? 'checked' : ''}" @click=${() => this.includeExport122 = !this.includeExport122}>
+              <input
+                type="checkbox"
+                .checked=${this.includeExport122}
+                @change=${(e) => this.includeExport122 = e.target.checked}
+                @click=${(e) => e.stopPropagation()}
+              />
+              <label>Incluir hoja 122 (Exportación)</label>
+            </div>
+            <div class="checkbox-row ${this.incluirNoVigentes ? 'checked' : ''}" @click=${() => this.incluirNoVigentes = !this.incluirNoVigentes}>
+              <input
+                type="checkbox"
+                .checked=${this.incluirNoVigentes}
+                @change=${(e) => this.incluirNoVigentes = e.target.checked}
+                @click=${(e) => e.stopPropagation()}
+              />
+              <label>Incluir descontinuados / no vigentes</label>
+            </div>
+          ` : html`
+            <p class="quick-note">Descarga rápida: catálogo vigente, categoría seleccionada y Disponible VES.</p>
+          `}
         </div>
 
         <button
@@ -670,7 +750,7 @@ export class PulsoForm extends LitElement {
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            Generar Inventario Real-Time
+            Descargar reporte
           `}
         </button>
         ${this.errorMsg ? html`

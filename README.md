@@ -85,21 +85,27 @@ memoria (<1ms) → sessionStorage (<5min) → localStorage (<7d, >15min=fresh) �
 ```
 src/
 ├── components/
-│   ├── app-root.js        # Raíz: navegación, sesión, store subscription
+│   ├── app-root.js        # Raíz: navegación, sesión, prefill de reportes
 │   ├── login-view.js      # Login local simulado (@cipsa.com.pe)
 │   ├── stock-header.js    # Header + menú de sesión (tema / cerrar sesión)
 │   ├── install-banner.js  # Banner flotante de instalación PWA (cooldown 14 días)
-│   ├── pulso-form.js      # Reporte XLSX (usa la sesión como autor)
-│   ├── estado-panel.js    # Dashboard KPIs + categorías + vista de alertas
-│   ├── stock-search.js    # Búsqueda fuzzy multi-término + compartir SKUs
+│   ├── pulso-form.js      # Reportes: rápido por defecto + opciones avanzadas
+│   ├── estado-panel.js    # Dashboard KPIs + búsqueda + árbol
+│   ├── estado-tree.js     # Árbol categoría → línea → SKU (solo lectura)
+│   ├── alertas-panel.js   # Worklist: 0 y bajo stock
+│   ├── stock-search.js    # Búsqueda + avanzada + multiselección para compartir
 │   ├── almacen-legend.js  # Leyenda de colores de almacenes (compartida)
-│   └── sin-catalogo-panel.js  # Ítems fuera del catálogo maestro
+│   └── sin-catalogo-panel.js  # Ítems fuera del catálogo maestro (independiente)
+├── ui/
+│   ├── almacen-chips.js   # Chips por almacén (código + nombre/tooltip)
+│   └── sku-row.js         # Fila + detalle de SKU compartidos
 ├── core/
 │   ├── stock-store.js     # Store centralizado (pub/sub + 3 capas cache)
 │   ├── stock-service.js   # Datos del API, modelo enriquecido y helpers
 │   ├── report-generator.js # Generación XLSX en browser (ExcelJS)
+│   ├── report-downloads.js # Punto único de descargas y nombres
 │   ├── report-filters.js  # Segmentación del reporte (vigente/categoría/línea)
-│   ├── share.js           # Mensaje compacto para compartir SKUs
+│   ├── share.js           # Mensaje breve para compartir SKUs
 │   ├── session.js         # Sesión local (nombre + email corporativo)
 │   └── skill.json         # Configuración del skill G360
 ├── styles/
@@ -156,8 +162,10 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
 - **Buscador**: número = VES exacto; badges de predespacho y fallbacks (129/40/QC);
   chips por almacén con color por rol + leyenda colapsable compartida
   (`almacen-legend.js`); búsqueda multi-término AND insensible a tildes
-  (`ignoreDiacritics`); link compartido `?q=SKU` abre la búsqueda ya filtrada;
-  dictado por voz con debounce y errores visibles (permiso, red, sin audio).
+  (`ignoreDiacritics`) + exact SKU/EAN; **búsqueda avanzada** por Grupo, Tipo,
+  Familia, Licencia, Categoría, Línea, Stock y Vigencia; link compartido
+  `?q=SKU` abre la búsqueda ya filtrada; dictado por voz con debounce y errores
+  visibles.
 - **Compartir**: modo "Seleccionar" en el buscador → mensaje compacto de varios
   SKUs (SKU, nombre y Disponible VES) por `navigator.share` (WhatsApp) con
   fallback a `wa.me`/portapapeles. Pensado para PWA móvil, donde compartir texto
@@ -229,13 +237,29 @@ El frontend consume el `ItemStockEnriched` completo (no solo stock):
 
 | Dónde | Qué descarga |
 |---|---|
-| Dashboard → Exportar | Con stock, Bajo stock, Sin stock, Sin Catálogo y 122 |
-| Dashboard → sección del árbol | Reporte de esa **categoría** (Resumen + hojas por línea) |
-| Alertas → Exportar | Todos (sin + bajo stock), Bajo stock, Sin stock |
+| Pulso → Descargar reporte | **Rápido** por defecto (catálogo vigente + VES); con opciones avanzadas: perfil completo, línea, no vigentes, hojas Sin Catálogo/122 |
+| Estado → Exportar | Con stock, Bajo stock, Sin stock, Sin Catálogo y 122 |
+| Estado → árbol | Solo lectura; "Generar reporte" **abre Pulso prellenado** (no descarga) |
+| Alertas → Exportar | Todos (0 + bajo), Bajo stock, Sin stock |
 | Sin Catálogo → Exportar | Hoja de SKUs fuera de catálogo |
 
-Todos los XLSX salen del mismo generador (`report-generator.js`); el disponible
-siempre es VES y los lotes 129/40/121/122 se muestran solo como información.
+Los nombres incluyen el perfil: `StockPulse_<CAT>_<Rapido|Completo>_<fecha>.xlsx`.
+Todo pasa por `report-downloads.js` (un solo punto para generar, nombrar y descargar).
+
+## Compartir SKUs
+
+En el buscador (multiselección) se genera un mensaje breve:
+
+```
+StockPulse · Consulta de stock
+• 03075 — FOLDER N VINIFAN FANTASIA OFICIO INFANTIL SURTIDO
+  ARCHIVO · VES: 1,200 u (25 bx)
+• 03108 — FOLDER N VINIFAN DOBLE TAPA OFICIO SURTIDO GUSANO
+  ARCHIVO · VES: 0 · 129: 200
+Solicitado por: Carlos Cusi
+```
+
+Si VES = 0 se agrega el primer respaldo con stock (129 → 121 → 92). Sin URL de filtros.
 
 ## Scripts
 

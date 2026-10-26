@@ -57,6 +57,9 @@ const producto = (over = {}) => ({
   precio: 9.16,
   ean13: '',
   ean14: '',
+  grupo: 'VARIOS',
+  tipo: '',
+  familia: '',
   keywords: [],
   orden: 10,
   almacenes_venta: [lote('VES', 4800), lote('129', 200), lote('92', 50), lote('40', 10), lote('121', 480), lote('122', 300, { stock: 350, predespacho: 50 })],
@@ -64,7 +67,13 @@ const producto = (over = {}) => ({
 });
 
 // Catálogo de simulación
-const VIGENTE = producto({ keywords: ['VOLEY', 'FOLK'], ean13: '7754807159395' });
+const VIGENTE = producto({
+  keywords: ['VOLEY', 'FOLK'],
+  ean13: '7754807159395',
+  grupo: 'FOLDER',
+  tipo: 'VINIFAN TAPA FANTASIA',
+  familia: 'OFICIO SIN LICENCIA',
+});
 const DESCONTINUADO = producto({ sku: '999001', nombre: 'ITEM DESCONTINUADO', nombre_corto: 'Item descontinuado', bx: 10, stock: 480, descontinuado: true });
 const SIN_CATALOGO = producto({ sku: '999002', nombre: 'ITEM SIN CATALOGO', nombre_corto: 'Item sin catálogo', estado_linea: '', bx: 5, stock: 60 });
 const AGOTADO = producto({ sku: '783390', nombre: 'PELOTA PLAYA 40CM', nombre_corto: 'Pelota Playa 40cm', categoria: 'VINIFAN', linea: 'JUGUETES', bx: 0, stock: 0, orden: 90, almacenes_venta: [lote('121', 240)] });
@@ -221,8 +230,8 @@ describe('Simulación búsqueda + compartir', () => {
     expect(el.shadowRoot.querySelectorAll('.result-item.selected')).toHaveLength(2);
 
     const msg = construirMensajeStock(el._productosSeleccionados(), el.autor);
-    expect(msg).toContain('• 015939 — Voley Viniball Folk\n  Disponible VES: 4,800');
-    expect(msg).toContain('• 031177 — Rompecabezas lógica\n  Disponible VES: 960');
+    expect(msg).toContain('• 015939 — VOLEY VINIBALL GOMA FOLK\n  PELOTAS · VES: 4,800 u (100 bx)');
+    expect(msg).toContain('• 031177 — ROMPECABEZAS LÓGICA 500 PZAS\n  JUGUETES · VES: 960 u (40 bx)');
     expect(msg).toContain('Solicitado por: Carlos Cusi');
     expect(el.shadowRoot.querySelector('.share-btn').disabled).toBe(false);
 
@@ -244,5 +253,34 @@ describe('Simulación búsqueda + compartir', () => {
     expect(res[0]).not.toContain('Atendible del');
     expect(el.shadowRoot.querySelector('.almacen-chip.inspeccion-sec')).toBeTruthy();
     console.log('[SIM D] 92 informativo (sin fallback) -> OK');
+  });
+
+  it('ESCENARIO E: exact SKU sin ceros y EAN-13', async () => {
+    expect(await buscar('15939')).toHaveLength(1);        // SKU sin cero inicial
+    expect(await buscar('7754807159395')).toHaveLength(1); // EAN-13
+    console.log('[SIM E] exact SKU/EAN -> OK');
+  });
+
+  it('ESCENARIO F: búsqueda avanzada por tipo y licencia', async () => {
+    el.advancedOpen = true;
+    el.facetas = { ...el.facetas, tipo: 'VINIFAN TAPA FANTASIA' };
+    el._search();
+    await el.updateComplete;
+    expect(el.results.map((r) => r.p.sku)).toEqual(['015939']);
+
+    el.facetas = { ...el.facetas, tipo: '', licencia: 'sin' };
+    el._search();
+    await el.updateComplete;
+    expect(el.results.map((r) => r.p.sku)).toEqual(['015939']);
+
+    el.facetas = { ...el.facetas, licencia: 'con' };
+    el._search();
+    await el.updateComplete;
+    expect(el.results).toHaveLength(0);
+
+    el._limpiarFacetas();
+    await el.updateComplete;
+    expect(el.shadowRoot.querySelector('.advanced-panel')).toBeTruthy();
+    console.log('[SIM F] facetas tipo/licencia -> OK');
   });
 });

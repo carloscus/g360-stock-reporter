@@ -3,7 +3,7 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.12.0
+ * @version 3.13.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -13,6 +13,7 @@ import Fuse from 'fuse.js';
 import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, revisionBadge, UMBRAL_BAJO_STOCK } from '../core/stock-service.js';
 import { construirMensajeStock } from '../core/share.js';
 import { ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, INSPECCION_ALMACEN_ALT, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
+import { renderAlmacenChips, almacenChipsStyles } from '../ui/almacen-chips.js';
 import './almacen-legend.js';
 
 export class StockSearch extends LitElement {
@@ -26,12 +27,16 @@ export class StockSearch extends LitElement {
     onlyInStock: { type: Boolean },
     selectMode: { type: Boolean },
     autor: { type: String },
+    advancedOpen: { type: Boolean },
+    facetas: { type: Object },
     _selected: { type: Object },
     _shareMsg: { type: String },
     voiceError: { type: String },
   };
 
-  static styles = css`
+  static styles = [
+    almacenChipsStyles,
+    css`
     :host {
       display: block;
     }
@@ -330,82 +335,6 @@ export class StockSearch extends LitElement {
       margin-top: 6px;
     }
 
-    .almacen-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: var(--lote-ves-bg);
-      border: 1px solid var(--lote-ves-border);
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--lote-ves);
-      white-space: nowrap;
-    }
-
-    .almacen-chip.inspeccion {
-      background: var(--lote-121-bg);
-      border-color: var(--lote-121-border);
-      color: var(--lote-121);
-    }
-
-    .almacen-chip.inspeccion-sec {
-      background: var(--lote-121-bg);
-      border: 1px dashed var(--lote-121-border);
-      color: var(--lote-121);
-    }
-
-    .almacen-chip.secundario {
-      background: var(--lote-129-bg);
-      border-color: var(--lote-129-border);
-      color: var(--lote-129);
-    }
-
-    .almacen-chip.predespacho {
-      background: var(--lote-40-bg);
-      border-color: var(--lote-40-border);
-      color: var(--lote-40);
-    }
-
-    .almacen-chip.fallback {
-      background: var(--lote-ves-bg);
-      border-color: var(--lote-ves-border);
-      color: var(--lote-ves);
-      font-weight: 700;
-    }
-
-    .almacen-chip.qc {
-      background: var(--lote-121-bg);
-      border-color: var(--lote-121-border);
-      color: var(--lote-121);
-      font-weight: 700;
-    }
-
-    .almacen-chip.terciario {
-      background: var(--lote-40-bg);
-      border-color: var(--lote-40-border);
-      color: var(--lote-40);
-    }
-
-    .almacen-chip.traslado {
-      background: var(--lote-129-bg);
-      border: 1px dashed var(--lote-129-border);
-      color: var(--lote-129);
-    }
-
-    .almacen-chip.exportacion {
-      background: var(--lote-122-bg);
-      border-color: var(--lote-122-border);
-      color: var(--lote-122);
-    }
-
-    .almacen-chip.sin-venta {
-      background: var(--lote-40-bg);
-      border-color: var(--g360-border);
-      color: var(--g360-muted);
-    }
-
     .sin-cat-badge {
       display: inline-flex;
       align-items: center;
@@ -514,6 +443,47 @@ export class StockSearch extends LitElement {
       flex: 1 1 100%;
     }
 
+    .advanced-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--g360-border);
+      background: var(--g360-bg);
+    }
+
+    .facet {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--g360-muted);
+    }
+
+    .facet select {
+      padding: 7px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--g360-border);
+      background: var(--g360-surface);
+      color: var(--g360-text);
+      font-size: 11px;
+      font-family: inherit;
+    }
+
+    .clear-facets {
+      align-self: end;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px dashed var(--g360-border-strong, var(--g360-border));
+      background: transparent;
+      color: var(--g360-accent);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
     .filter-chip {
       display: flex;
       align-items: center;
@@ -550,7 +520,8 @@ export class StockSearch extends LitElement {
         text-align: left;
       }
     }
-  `;
+  `,
+  ];
 
   constructor() {
     super();
@@ -563,6 +534,11 @@ export class StockSearch extends LitElement {
     this.onlyInStock = false;
     this.selectMode = false;
     this.autor = '';
+    this.advancedOpen = false;
+    this.facetas = {
+      grupo: '', tipo: '', familia: '', categoria: '', linea: '',
+      licencia: '', stock: '', vigencia: '',
+    };
     this._selected = new Set();
     this._shareMsg = '';
     this.voiceError = '';
@@ -588,7 +564,7 @@ export class StockSearch extends LitElement {
     if (changedProperties.has('stockData') && this.stockData) {
       this.isLoading = false;
       this._initFuse();
-      if (this.searchTerm.length >= 2) this._search();
+      if (this.searchTerm.length >= 2 || this._facetasActivas()) this._search();
     }
   }
 
@@ -691,6 +667,97 @@ export class StockSearch extends LitElement {
     }
   }
 
+  _norm(texto) {
+    return (texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  _skuSinCeros(sku) {
+    return this._norm(sku).replace(/^0+/, '');
+  }
+
+  /** Coincidencia exacta por SKU (con/sin ceros) o EAN-13/14. */
+  _exactos(term) {
+    const q = this._norm(term).replace(/[\s-]+/g, '');
+    if (!q) return [];
+    const out = [];
+    for (const p of (this.stockData?.productos || [])) {
+      const sku = this._norm(p.sku);
+      const ean13 = this._norm(p.ean13);
+      const ean14 = this._norm(p.ean14);
+      if (sku === q || this._skuSinCeros(p.sku) === q || ean13 === q || ean14 === q) {
+        out.push({ item: p, score: 0, matches: [] });
+      }
+    }
+    return out;
+  }
+
+  _licencia(p) {
+    const familia = this._norm(p.familia);
+    if (familia.includes('con licencia')) return 'con';
+    if (familia.includes('sin licencia')) return 'sin';
+    return '';
+  }
+
+  _facetasActivas() {
+    return Object.values(this.facetas || {}).some((v) => v !== '');
+  }
+
+  _pasaFacetas(p) {
+    const f = this.facetas || {};
+    if (f.grupo && p.grupo !== f.grupo) return false;
+    if (f.tipo && p.tipo !== f.tipo) return false;
+    if (f.familia && p.familia !== f.familia) return false;
+    if (f.categoria && p.categoria !== f.categoria) return false;
+    if (f.linea && p.linea !== f.linea) return false;
+    if (f.licencia && this._licencia(p) !== f.licencia) return false;
+    if (f.stock === 'ves' && !((p.stock || 0) > 0)) return false;
+    if (f.stock === 'any' && !((p.almacenes_venta || []).some((a) => (a.disponible || 0) > 0))) return false;
+    if (f.vigencia === 'vigente' && (p.descontinuado || p.vigente === false)) return false;
+    return true;
+  }
+
+  _opciones(campo) {
+    const valores = new Set();
+    for (const p of (this.stockData?.productos || [])) {
+      if (campo === 'licencia') {
+        const lic = this._licencia(p);
+        if (lic) valores.add(lic);
+      } else if (p[campo]) {
+        valores.add(p[campo]);
+      }
+    }
+    return [...valores].sort((a, b) => a.localeCompare(b));
+  }
+
+  _renderFaceta(label, campo) {
+    return html`
+      <label class="facet">
+        <span>${label}</span>
+        <select .value=${this.facetas[campo] || ''} @change=${(e) => this._setFaceta(campo, e.target.value)}>
+          <option value="">Todos</option>
+          ${this._opciones(campo).map((v) => html`<option value=${v}>${v}</option>`)}
+        </select>
+      </label>
+    `;
+  }
+
+  _toggleAdvanced() {
+    this.advancedOpen = !this.advancedOpen;
+  }
+
+  _setFaceta(campo, valor) {
+    this.facetas = { ...this.facetas, [campo]: valor };
+    this._search();
+  }
+
+  _limpiarFacetas() {
+    this.facetas = {
+      grupo: '', tipo: '', familia: '', categoria: '', linea: '',
+      licencia: '', stock: '', vigencia: '',
+    };
+    this._search();
+  }
+
   _initFuse() {
     if (!Fuse || !this.stockData?.productos) return;
     const options = {
@@ -699,9 +766,14 @@ export class StockSearch extends LitElement {
         { name: 'nombre_corto', weight: 1.5 },
         { name: 'nombre', weight: 1 },
         { name: 'keywords', weight: 0.6 },
-        { name: 'ean13', weight: 0.8 },
+        { name: 'ean13', weight: 1 },
+        { name: 'ean14', weight: 0.8 },
         { name: 'linea', weight: 0.5 },
         { name: 'categoria', weight: 0.5 },
+        { name: 'tipo', weight: 0.9 },
+        { name: 'familia', weight: 0.7 },
+        { name: 'grupo', weight: 0.4 },
+        { name: 'um', weight: 0.2 },
       ],
       threshold: 0.3,
       includeScore: true,
@@ -712,14 +784,14 @@ export class StockSearch extends LitElement {
       ignoreDiacritics: true,
     };
     this._fuse = new Fuse(this.stockData.productos, options);
-    if (this.searchTerm.length >= 2) this._search();
+    if (this.searchTerm.length >= 2 || this._facetasActivas()) this._search();
   }
 
   _handleInput(e) {
     this.searchTerm = e.target.value;
     this.selectedIndex = -1;
     if (this._debounceTimer) clearTimeout(this._debounceTimer);
-    if (this.searchTerm.length >= 2) {
+    if (this.searchTerm.length >= 2 || this._facetasActivas()) {
       this._debounceTimer = setTimeout(() => this._search(), 180);
     } else {
       this.results = [];
@@ -745,7 +817,7 @@ export class StockSearch extends LitElement {
 
   _toggleInStock() {
     this.onlyInStock = !this.onlyInStock;
-    if (this.searchTerm.length >= 2) this._search();
+    if (this.searchTerm.length >= 2 || this._facetasActivas()) this._search();
   }
 
   /** Alterna el modo multiselección para compartir SKUs por WhatsApp/texto. */
@@ -861,14 +933,31 @@ export class StockSearch extends LitElement {
 
   _search() {
     const term = this.searchTerm.trim();
-    if (!term || !this._fuse) {
+    const facetas = this._facetasActivas();
+    if ((!term && !facetas) || !this._fuse) {
       this.results = [];
       return;
     }
-    let fuseResults = this._multiTermSearch(term);
-    if (fuseResults.length === 0) {
-      // Red de seguridad: frase completa (typos fuertes en algún token)
-      fuseResults = this._fuse.search(term);
+
+    let fuseResults;
+    if (term) {
+      const exactos = this._exactos(term);
+      if (exactos.length) {
+        fuseResults = exactos;
+      } else {
+        fuseResults = this._multiTermSearch(term);
+        if (fuseResults.length === 0) {
+          // Red de seguridad: frase completa (typos fuertes en algún token)
+          fuseResults = this._fuse.search(term);
+        }
+      }
+    } else {
+      // Sin texto pero con facetas: partir del universo completo.
+      fuseResults = (this.stockData?.productos || []).map((p) => ({ item: p, score: 0, matches: [] }));
+    }
+
+    if (facetas) {
+      fuseResults = fuseResults.filter((res) => this._pasaFacetas(res.item));
     }
     if (this.onlyInStock) {
       fuseResults = fuseResults.filter(res => (res.item.stock || 0) > 0);
@@ -996,8 +1085,51 @@ export class StockSearch extends LitElement {
           </svg>
           ${this.selectMode ? 'Seleccionando' : 'Seleccionar'}
         </div>
+        <div class="filter-chip ${this.advancedOpen ? 'active' : ''}" @click=${this._toggleAdvanced}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            ${this.advancedOpen
+              ? html`<polyline points="20 6 9 17 4 12"/>`
+              : html`<path d="M4 6h16M7 12h10M10 18h4"/>`
+            }
+          </svg>
+          Búsqueda avanzada
+        </div>
         <almacen-legend></almacen-legend>
       </div>
+
+      ${this.advancedOpen ? html`
+        <div class="advanced-panel">
+          ${this._renderFaceta('Grupo', 'grupo')}
+          ${this._renderFaceta('Tipo', 'tipo')}
+          ${this._renderFaceta('Familia', 'familia')}
+          ${this._renderFaceta('Categoría', 'categoria')}
+          ${this._renderFaceta('Línea', 'linea')}
+          <label class="facet">
+            <span>Licencia</span>
+            <select .value=${this.facetas.licencia} @change=${(e) => this._setFaceta('licencia', e.target.value)}>
+              <option value="">Todas</option>
+              <option value="con">Con licencia</option>
+              <option value="sin">Sin licencia</option>
+            </select>
+          </label>
+          <label class="facet">
+            <span>Stock</span>
+            <select .value=${this.facetas.stock} @change=${(e) => this._setFaceta('stock', e.target.value)}>
+              <option value="">Todos</option>
+              <option value="ves">Con stock VES</option>
+              <option value="any">Con stock en cualquier almacén</option>
+            </select>
+          </label>
+          <label class="facet">
+            <span>Vigencia</span>
+            <select .value=${this.facetas.vigencia} @change=${(e) => this._setFaceta('vigencia', e.target.value)}>
+              <option value="">Todas</option>
+              <option value="vigente">Solo vigentes</option>
+            </select>
+          </label>
+          <button class="clear-facets" @click=${this._limpiarFacetas}>Limpiar filtros</button>
+        </div>
+      ` : ''}
 
       ${this.voiceError ? html`<div class="voice-error" role="status">${this.voiceError}</div>` : ''}
 
@@ -1048,25 +1180,7 @@ export class StockSearch extends LitElement {
             return b && b.rev !== 'compromiso' ? b : null;
           })();
 
-          const rankAlmacen = (a) => {
-            if (a.almacen === ALMACEN_PRINCIPAL) return 0;
-            if (a.almacen === ALMACEN_SECUNDARIO) return 1;
-            if (a.almacen === ALMACEN_TRASLADO) return 2;
-            if (a.esInspeccion) return 99;
-            if (a.almacen === INSPECCION_ALMACEN_ALT) return 100;
-            return 10;
-          };
-          const almacenesChips = [...almacenesVenta]
-            .sort((x, y) => rankAlmacen(x) - rankAlmacen(y))
-            .map(a => html`
-              <span
-                class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === INSPECCION_ALMACEN_ALT ? 'inspeccion-sec' : a.almacen === ALMACEN_SECUNDARIO ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}"
-                title="${a.almacen}${a.nombre ? ` · ${a.nombre}` : ''}"
-                aria-label="Almacén ${a.almacen}${a.nombre ? `, ${a.nombre}` : ''}: ${a.disponible} disponibles"
-              >
-                ${a.almacen}: ${a.disponible}
-              </span>
-            `);
+          const almacenesChips = renderAlmacenChips(almacenesVenta);
 
           return html`
             <div

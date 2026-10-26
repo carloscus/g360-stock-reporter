@@ -4,18 +4,19 @@
  *              Carga datos una sola vez y los distribuye a los paneles via store.
  *              Un solo activador para la barra de búsqueda (nav item "Buscar").
  * @author @carloscus
- * @version 3.5.0
+ * @version 3.6.0
  */
 
 import { LitElement, html, css } from 'lit';
 import { subscribe, isStale, getTimeAgo, getMeta } from '../core/stock-store.js';
-import { generateAlerts, loadStockData, probeStockData, pingHealth, isBusinessHours, formatLimaTime, esCatalogo } from '../core/stock-service.js';
+import { loadStockData, probeStockData, pingHealth, isBusinessHours, formatLimaTime, contarAlertas } from '../core/stock-service.js';
 import { loadSession, clearSession } from '../core/session.js';
 import './stock-header.js';
 import './login-view.js';
 import './install-banner.js';
 import './pulso-form.js';
 import './estado-panel.js';
+import './alertas-panel.js';
 import './stock-search.js';
 import './sin-catalogo-panel.js';
 
@@ -534,6 +535,7 @@ export class AppRoot extends LitElement {
     this._session = loadSession();
     this._dataStarted = false;
     this._pendingQuery = null;
+    this._reportPrefill = null;
     // Query ?q= compartida (link de WhatsApp con un SKU): se resuelve cuando
     // llegan los datos (cache o API). Debe leerse antes de suscribirse.
     try {
@@ -547,10 +549,7 @@ export class AppRoot extends LitElement {
     // Suscribirse al store para recibir datos una sola vez
     this._unsubscribe = subscribe((data) => {
       this._stockData = data;
-      const catalogados = (data.productos || []).filter(esCatalogo);
-      this.alertCount = catalogados.length > 0
-        ? generateAlerts(catalogados).length
-        : 0;
+      this.alertCount = contarAlertas(data.productos);
       this._updateDataStatus();
       // Link compartido ?q=SKU: abrir el buscador con ese término al llegar datos
       if (this._pendingQuery) {
@@ -825,15 +824,34 @@ export class AppRoot extends LitElement {
   _renderActivePanel() {
     switch (this.activeTab) {
       case 'estado':
-        return html`<estado-panel .stockData=${this._stockData} mode="dashboard"></estado-panel>`;
+        return html`<estado-panel
+          .stockData=${this._stockData}
+          @prefill-report=${this._onPrefillReport}
+        ></estado-panel>`;
       case 'alertas':
-        return html`<estado-panel .stockData=${this._stockData} mode="alertas"></estado-panel>`;
+        return html`<alertas-panel .stockData=${this._stockData}></alertas-panel>`;
       case 'sincatalogo':
         return html`<sin-catalogo-panel .stockData=${this._stockData}></sin-catalogo-panel>`;
       case 'pulso':
       default:
-        return html`<pulso-form .stockData=${this._stockData} .autor=${this._session}></pulso-form>`;
+        return html`<pulso-form
+          .stockData=${this._stockData}
+          .autor=${this._session}
+          .categoriaInicial=${this._reportPrefill?.categoria || ''}
+          .lineaInicial=${this._reportPrefill?.linea || ''}
+          .advancedInicial=${!!this._reportPrefill}
+          @prefill-consumed=${this._onPrefillConsumed}
+        ></pulso-form>`;
     }
+  }
+
+  _onPrefillReport(e) {
+    this._reportPrefill = { categoria: e.detail.categoria, linea: e.detail.linea || '' };
+    this.activeTab = 'pulso';
+  }
+
+  _onPrefillConsumed() {
+    this._reportPrefill = null;
   }
 
   render() {

@@ -75,16 +75,23 @@ describe('componentes (smoke de render)', () => {
     expect(chip.getAttribute('title')).toContain('CENTRO LOGISTICO VES');
   });
 
-  it('pulso-form renderiza sin campos de identidad', async () => {
+  it('pulso-form renderiza rápido por defecto y avanzadas al abrir', async () => {
     const el = document.createElement('pulso-form');
     el.stockData = stockData;
     el.autor = { nombre: 'Carlos', email: 'carlos@cipsa.com.pe' };
     document.body.appendChild(el);
     await el.updateComplete;
-    const texto = el.shadowRoot.textContent;
-    expect(texto).toContain('Categoría de Interés');
-    expect(texto).toContain('Perfil de reporte');
-    expect(texto).not.toContain('Email Corporativo');
+
+    const rapido = el.shadowRoot.textContent;
+    expect(rapido).toContain('Categoría de Interés');
+    expect(rapido).toContain('Opciones avanzadas');
+    expect(rapido).toContain('Descarga rápida');
+    expect(rapido).not.toContain('Email Corporativo');
+
+    el.advanced = true;
+    el.requestUpdate();
+    await el.updateComplete;
+    expect(el.shadowRoot.textContent).toContain('Perfil de reporte');
   });
 
   it('sin-catalogo-panel renderiza con datos', async () => {
@@ -101,6 +108,21 @@ describe('componentes (smoke de render)', () => {
     document.body.appendChild(el);
     await el.updateComplete;
     expect(el.shadowRoot.querySelector('login-view')).toBeTruthy();
+  });
+
+  it('pulso-form aplica el prefill desde el árbol', async () => {
+    localStorage.clear();
+    const el = document.createElement('pulso-form');
+    el.stockData = stockData;
+    el.categoriaInicial = 'VINIFAN';
+    el.lineaInicial = 'JUGUETES';
+    el.advancedInicial = true;
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.categoria).toBe('VINIFAN');
+    expect(el.linea).toBe('JUGUETES');
+    expect(el.advanced).toBe(true);
   });
 
   it('stock-header: el chip abre menú (tema + logout) sin desloguear directo', async () => {

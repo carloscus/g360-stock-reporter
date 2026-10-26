@@ -4,7 +4,7 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.16.0
+ * @version 1.17.0
  */
 
 let ExcelJS = window.ExcelJS;
@@ -658,13 +658,14 @@ export function downloadBlob(blob, filename) {
 /**
  * Helper: generar nombre de archivo con timestamp Perú.
  */
-export function generarNombreArchivo(categoria) {
+export function generarNombreArchivo(categoria, perfil = '') {
   const fecha = new Date().toLocaleString('es-PE', {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit',
   }).replace(/\//g, '-').replace(',', '').replace(/:/g, '').replace(' ', '_');
   const catSuffix = categoria === 'TODOS' ? 'TODOS' : categoria;
-  return `StockPulse_${catSuffix}_${fecha}.xlsx`;
+  const perfilSuffix = perfil === 'completo' ? '_Completo' : perfil === 'rapido' ? '_Rapido' : '';
+  return `StockPulse_${catSuffix}${perfilSuffix}_${fecha}.xlsx`;
 }
 
 /**
