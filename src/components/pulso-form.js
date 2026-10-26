@@ -3,7 +3,7 @@
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.6.0
+ * @version 3.6.1
  */
 
 import { LitElement, html, css } from 'lit';
@@ -376,7 +376,7 @@ export class PulsoForm extends LitElement {
       align-items: center;
       justify-content: center;
       z-index: 100;
-      padding: 16px;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
     }
 
     .modal-content {

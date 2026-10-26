@@ -3,7 +3,7 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.14.0
+ * @version 3.15.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -95,7 +95,10 @@ export class StockSearch extends LitElement {
       border: none;
       color: var(--g360-muted);
       cursor: pointer;
-      padding: 8px;
+      padding: 10px;
+      min-width: 44px;
+      min-height: 44px;
+      box-sizing: border-box;
       border-radius: 50%;
       transition: all 0.3s ease;
       display: flex;
@@ -107,6 +110,13 @@ export class StockSearch extends LitElement {
       color: var(--g360-danger);
       background: var(--g360-danger-bg);
       animation: pulse 1.5s infinite;
+    }
+
+    .voice-status {
+      padding: 0 16px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--g360-accent);
     }
 
     .voice-error {
@@ -124,6 +134,7 @@ export class StockSearch extends LitElement {
 
     .search-results {
       max-height: 65vh;
+      max-height: 60dvh;
       overflow-y: auto;
       padding: 8px;
       overscroll-behavior: contain;
@@ -177,6 +188,7 @@ export class StockSearch extends LitElement {
     .share-bar {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 8px;
       padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
       border-top: 1px solid var(--g360-border);
@@ -471,6 +483,10 @@ export class StockSearch extends LitElement {
     .facet summary {
       cursor: pointer;
       padding: 6px 8px;
+      min-height: 36px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
       border-radius: 8px;
       border: 1px solid var(--g360-border);
       background: var(--g360-surface);
@@ -525,6 +541,8 @@ export class StockSearch extends LitElement {
       display: flex;
       align-items: center;
       gap: 6px;
+      min-height: 36px;
+      box-sizing: border-box;
       padding: 6px 12px;
       border-radius: 20px;
       background: var(--g360-bg);
@@ -556,6 +574,11 @@ export class StockSearch extends LitElement {
       .ean {
         text-align: left;
       }
+    }
+
+    @media (max-width: 480px) {
+      .share-count { flex: 1 1 100%; }
+      .share-btn, .share-clear { flex: 1; text-align: center; }
     }
   `,
   ];
@@ -611,6 +634,7 @@ export class StockSearch extends LitElement {
       this._recognition = new SpeechRecognition();
       this._recognition.continuous = false;
       this._recognition.interimResults = true;
+      this._recognition.maxAlternatives = 1;
       this._recognition.lang = 'es-PE';
 
       this._recognition.onstart = () => {
@@ -649,6 +673,12 @@ export class StockSearch extends LitElement {
       };
 
       this._recognition.onend = () => { this.isListening = false; };
+
+      this._recognition.onnomatch = () => {
+        this.isListening = false;
+        this.voiceError = 'No se entendió, intenta de nuevo';
+        this.requestUpdate();
+      };
     }
   }
 
@@ -1103,7 +1133,7 @@ export class StockSearch extends LitElement {
         <input
           type="search"
           class="search-input"
-          placeholder="Buscar por SKU, nombre, línea o EAN..."
+          placeholder="Buscar por SKU, EAN, nombre, tipo o familia..."
           .value=${live(this.searchTerm)}
           @input=${this._handleInput}
           @keydown=${this._handleKeyDown}
@@ -1203,7 +1233,10 @@ export class StockSearch extends LitElement {
         </div>
       ` : ''}
 
-      ${this.voiceError ? html`<div class="voice-error" role="status">${this.voiceError}</div>` : ''}
+      ${this.isListening ? html`
+        <div class="voice-status" role="status" aria-live="polite">🎙 Escuchando… habla ahora</div>
+      ` : ''}
+      ${this.voiceError ? html`<div class="voice-error" role="status" aria-live="polite">${this.voiceError}</div>` : ''}
 
       <div class="search-results">
         ${this.isLoading ? html`

@@ -3,7 +3,7 @@
  * @description Árbol de exploración categoría → línea → SKU. Solo lectura:
  *              no descarga; el enlace "Generar reporte" prellena Pulso.
  * @author @carloscus
- * @version 1.0.0
+ * @version 1.0.1
  */
 
 import { LitElement, html, css } from 'lit';
@@ -130,6 +130,22 @@ export class EstadoTree extends LitElement {
         color: var(--g360-muted);
         font-size: 13px;
       }
+
+      @media (max-width: 480px) {
+        .prefill-btn {
+          width: 34px;
+          height: 34px;
+          padding: 0;
+          font-size: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .prefill-btn::after {
+          content: '↓';
+          font-size: 15px;
+        }
+      }
     `,
   ];
 
@@ -219,6 +235,7 @@ export class EstadoTree extends LitElement {
               <button
                 class="prefill-btn"
                 title="Generar reporte de ${categoria}"
+                aria-label="Generar reporte de ${categoria}"
                 @click=${(e) => this._prefill(categoria, '', e)}
               >Generar reporte</button>
             </div>
@@ -238,6 +255,7 @@ export class EstadoTree extends LitElement {
                       <button
                         class="prefill-btn small"
                         title="Generar reporte de ${linea}"
+                        aria-label="Generar reporte de ${linea}"
                         @click=${(e) => this._prefill(categoria, linea, e)}
                       >Generar</button>
                     </div>
