@@ -216,6 +216,14 @@ El frontend consume el `ItemStockEnriched` completo (no solo stock):
 > Los flags vienen del catálogo maestro v3.6.0; `revision` es el estado que el
 > backend designa para badges del frontend.
 
+## Pendientes conocidos
+
+- **Nombres de almacén**: el API solo expone códigos (`VES`, `129`, `40`, `121`,
+  `122`); no hay nombre en `AlmacenStock` ni en `/api/v1/almacenes`. Decisión
+  actual: usar solo códigos en la UI. Follow-up: agregar `nombre` al modelo y al
+  endpoint en `g360-stock-api` (requiere que el reporte ERP lo traiga) y
+  consumirlo desde el frontend.
+
 
 ## Exportaciones
 
