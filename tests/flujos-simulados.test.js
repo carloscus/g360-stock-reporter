@@ -130,7 +130,7 @@ describe('Simulación XLSX', () => {
     const ws = wb.getWorksheet('PELOTAS');
     expect(headers(ws)).toEqual([
       '#', 'Código', 'Producto', 'Línea', 'Un/Caja',
-      '129 (Secundario)', '92 (Secundario)', '40 (Traslado)', '121 (Inspección)', '122 (Exportación)',
+      '129 (Secundario)', '92 (Insp. secundaria)', '40 (Traslado)', '121 (Inspección)', '122 (Exportación)',
       'Predespacho', 'Revisión', 'Disponible VES', 'Cajas', 'Estado',
     ]);
     const fila = ws.getRow(2);
@@ -238,10 +238,11 @@ describe('Simulación búsqueda + compartir', () => {
     console.log('[SIM C] filtro solo-con-stock -> OK');
   });
 
-  it('ESCENARIO D: sin VES, atiende desde el 92 (secundario)', async () => {
+  it('ESCENARIO D: el 92 es inspección secundaria (informativo, sin fallback)', async () => {
     const res = await buscar('solo almacen');
     expect(res).toHaveLength(1);
-    expect(res[0]).toContain('Atendible del 92: 120');
-    console.log('[SIM D] fallback del 92 -> OK');
+    expect(res[0]).not.toContain('Atendible del');
+    expect(el.shadowRoot.querySelector('.almacen-chip.inspeccion-sec')).toBeTruthy();
+    console.log('[SIM D] 92 informativo (sin fallback) -> OK');
   });
 });

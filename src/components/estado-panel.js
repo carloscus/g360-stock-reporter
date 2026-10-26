@@ -4,13 +4,13 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.10.0
+ * @version 4.11.0
  */
 
 import { LitElement, html, css } from 'lit';
 import { calculateKPIs, calculateStats, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo, revisionBadge, UMBRAL_BAJO_STOCK, tieneStock122 } from '../core/stock-service.js';
 import { esVigente } from '../core/report-filters.js';
-import { ALMACEN_SECUNDARIO, ALMACEN_SECUNDARIO_ALT, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
+import { ALMACEN_SECUNDARIO, INSPECCION_ALMACEN_ALT, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
 import './almacen-legend.js';
 
 // SKUs renderizados por categoría antes de "Mostrar más" (evita jank al buscar
@@ -578,6 +578,12 @@ export class EstadoPanel extends LitElement {
       color: var(--lote-121);
     }
 
+    .almacen-chip.inspeccion-sec {
+      background: var(--lote-121-bg);
+      border: 1px dashed var(--lote-121-border);
+      color: var(--lote-121);
+    }
+
     .almacen-chip.secundario {
       background: var(--lote-129-bg);
       border-color: var(--lote-129-border);
@@ -758,7 +764,7 @@ export class EstadoPanel extends LitElement {
           <div class="almacen-chips">
             ${(s.almacenes_venta || []).map(a => html`
               <span
-                class="almacen-chip ${a.esInspeccion ? 'inspeccion' : (a.almacen === ALMACEN_SECUNDARIO || a.almacen === ALMACEN_SECUNDARIO_ALT) ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}"
+                class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === INSPECCION_ALMACEN_ALT ? 'inspeccion-sec' : a.almacen === ALMACEN_SECUNDARIO ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}"
                 title="${a.almacen}${a.nombre ? ` · ${a.nombre}` : ''}"
                 aria-label="Almacén ${a.almacen}${a.nombre ? `, ${a.nombre}` : ''}: ${a.disponible} disponibles"
               >${a.almacen}: ${a.disponible}</span>

@@ -3,7 +3,7 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.11.0
+ * @version 3.12.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -12,7 +12,7 @@ import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import Fuse from 'fuse.js';
 import { calculateBx, etiquetaStock, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, revisionBadge, UMBRAL_BAJO_STOCK } from '../core/stock-service.js';
 import { construirMensajeStock } from '../core/share.js';
-import { ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, ALMACEN_SECUNDARIO_ALT, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
+import { ALMACEN_PRINCIPAL, ALMACEN_SECUNDARIO, INSPECCION_ALMACEN_ALT, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from '../core/stock-store.js';
 import './almacen-legend.js';
 
 export class StockSearch extends LitElement {
@@ -347,6 +347,12 @@ export class StockSearch extends LitElement {
     .almacen-chip.inspeccion {
       background: var(--lote-121-bg);
       border-color: var(--lote-121-border);
+      color: var(--lote-121);
+    }
+
+    .almacen-chip.inspeccion-sec {
+      background: var(--lote-121-bg);
+      border: 1px dashed var(--lote-121-border);
       color: var(--lote-121);
     }
 
@@ -1020,9 +1026,7 @@ export class StockSearch extends LitElement {
           const almacenesVenta = p.almacenes_venta || [];
           const vesStock = disponibleVES(p);
           const inspeccionStock = almacenesVenta.find((a) => a.esInspeccion)?.disponible || 0;
-          const secundarioStock = stockEnAlmacen(p, ALMACEN_SECUNDARIO) + stockEnAlmacen(p, ALMACEN_SECUNDARIO_ALT);
-          const secundariosConStock = [ALMACEN_SECUNDARIO, ALMACEN_SECUNDARIO_ALT]
-            .filter((c) => stockEnAlmacen(p, c) > 0);
+          const secundarioStock = stockEnAlmacen(p, ALMACEN_SECUNDARIO);
           const trasladoStock = stockEnAlmacen(p, ALMACEN_TRASLADO);
           const predespacho = p.predespacho || 0;
 
@@ -1046,16 +1050,17 @@ export class StockSearch extends LitElement {
 
           const rankAlmacen = (a) => {
             if (a.almacen === ALMACEN_PRINCIPAL) return 0;
-            if (a.almacen === ALMACEN_SECUNDARIO || a.almacen === ALMACEN_SECUNDARIO_ALT) return 1;
+            if (a.almacen === ALMACEN_SECUNDARIO) return 1;
             if (a.almacen === ALMACEN_TRASLADO) return 2;
             if (a.esInspeccion) return 99;
+            if (a.almacen === INSPECCION_ALMACEN_ALT) return 100;
             return 10;
           };
           const almacenesChips = [...almacenesVenta]
             .sort((x, y) => rankAlmacen(x) - rankAlmacen(y))
             .map(a => html`
               <span
-                class="almacen-chip ${a.esInspeccion ? 'inspeccion' : (a.almacen === ALMACEN_SECUNDARIO || a.almacen === ALMACEN_SECUNDARIO_ALT) ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}"
+                class="almacen-chip ${a.esInspeccion ? 'inspeccion' : a.almacen === INSPECCION_ALMACEN_ALT ? 'inspeccion-sec' : a.almacen === ALMACEN_SECUNDARIO ? 'secundario' : a.almacen === ALMACEN_TRASLADO ? 'terciario' : a.almacen === ALMACEN_EXPORTACION ? 'exportacion' : ''}"
                 title="${a.almacen}${a.nombre ? ` · ${a.nombre}` : ''}"
                 aria-label="Almacén ${a.almacen}${a.nombre ? `, ${a.nombre}` : ''}: ${a.disponible} disponibles"
               >
@@ -1077,7 +1082,7 @@ export class StockSearch extends LitElement {
                 <span class="nombre">${unsafeHTML(nombre)}</span>
                 <span class="linea">${unsafeHTML(linea)}</span>
                  <div class="almacenes-row">
-                   ${mostrarFallback129 ? html`<span class="almacen-chip fallback">Atendible del ${secundariosConStock.join('/')}: ${secundarioStock}</span>` : ''}
+                   ${mostrarFallback129 ? html`<span class="almacen-chip fallback">Atendible del 129: ${secundarioStock}</span>` : ''}
                    ${mostrarTraslado40 ? html`<span class="almacen-chip traslado">Trasladable del 40: ${trasladoLabel}</span>` : ''}
                    ${mostrarQC ? html`<span class="almacen-chip qc">En QC: ${qcLabel} por pasar a VES</span>` : ''}
                    ${predespacho > 0 ? html`<span class="almacen-chip predespacho">Predespacho: ${predespacho}</span>` : ''}

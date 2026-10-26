@@ -4,7 +4,7 @@
  *              Migrado de scripts/generate-reports-excel.cjs — usa writeBuffer() + Blob
  *              en lugar de fs.writeFileSync. Lazy-loaded via dynamic import en pulso-form.js.
  * @author @carloscus
- * @version 1.15.0
+ * @version 1.16.0
  */
 
 let ExcelJS = window.ExcelJS;
@@ -32,7 +32,7 @@ async function loadExcelJS() {
   return _excelJsPromise;
 }
 
-import { ALMACEN_SECUNDARIO, ALMACEN_SECUNDARIO_ALT, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
+import { ALMACEN_SECUNDARIO, INSPECCION_ALMACEN_ALT, ALMACEN_TRASLADO, ALMACEN_EXPORTACION } from './stock-store.js';
 import { sortByOrden, esPorUnidades, esCatalogo, esSinCatalogo, disponibleVES, stockEnAlmacen, predespachoEnAlmacen, tieneStock122, UMBRAL_BAJO_STOCK, calculateBx } from './stock-service.js';
 import { filtrarReporte, esVigente, CATEGORIAS_TODOS } from './report-filters.js';
 
@@ -329,12 +329,12 @@ function createResumenSheet(ws, productos, autor = null) {
 const ALMACEN_ROLES = {
   VES: 'Venta directa',
   '129': 'Secundario',
-  '92': 'Secundario',
+  '92': 'Inspección secundaria',
   '40': 'Traslado',
   '121': 'Inspección/QC',
   '122': 'Exportación',
 };
-const ORDEN_ALMACENES = ['VES', '129', '92', '40', '121', '122'];
+const ORDEN_ALMACENES = ['VES', '129', '40', '121', '92', '122'];
 
 /**
  * Leyenda de almacenes en el Resumen: código, nombre oficial (si el API lo
@@ -411,7 +411,7 @@ function createDataSheet(ws, titulo, productos, { perfil = 'rapido', incluirLote
   if (completo) {
     headers.push(
       { header: '129 (Secundario)', key: 'secundario', width: 16 },
-      { header: '92 (Secundario)', key: 'secundario2', width: 16 },
+      { header: '92 (Insp. secundaria)', key: 'inspSecundaria', width: 18 },
       { header: '40 (Traslado)', key: 'traslado', width: 16 },
       { header: '121 (Inspección)', key: 'inspeccion', width: 16 },
       { header: '122 (Exportación)', key: 'export122', width: 16 },
@@ -448,7 +448,7 @@ function createDataSheet(ws, titulo, productos, { perfil = 'rapido', incluirLote
 
     if (completo) {
       rowData.secundario = stockEnAlmacen(p, ALMACEN_SECUNDARIO);
-      rowData.secundario2 = stockEnAlmacen(p, ALMACEN_SECUNDARIO_ALT);
+      rowData.inspSecundaria = stockEnAlmacen(p, INSPECCION_ALMACEN_ALT);
       rowData.traslado = stockEnAlmacen(p, ALMACEN_TRASLADO);
       rowData.inspeccion = inspeccionStock;
       rowData.export122 = stockEnAlmacen(p, ALMACEN_EXPORTACION);
@@ -468,7 +468,7 @@ function createDataSheet(ws, titulo, productos, { perfil = 'rapido', incluirLote
 
     // Color coding de columnas informativas + estado (mismo criterio por fila)
     const coloredKeys = completo
-      ? ['secundario', 'secundario2', 'traslado', 'inspeccion', 'export122', 'predespacho', 'revision', 'stock', 'bx', 'estado']
+      ? ['secundario', 'inspSecundaria', 'traslado', 'inspeccion', 'export122', 'predespacho', 'revision', 'stock', 'bx', 'estado']
       : incluirLotes
         ? ['secundario', 'traslado', 'inspeccion', 'stock', 'bx', 'estado']
         : ['stock', 'bx', 'estado'];

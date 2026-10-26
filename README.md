@@ -147,9 +147,10 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
 | Almacén | Rol | Dónde se ve |
 |---------|-----|-------------|
 | **VES** | Venta directa (disponible principal) | Número principal, columna "Disponible VES", KPIs, estados |
-| **129 / 92** | Secundario · atendible si VES = 0 | Badge "Atendible del 129/92", columnas informativas |
+| **129** | Secundario · atendible si VES = 0 | Badge "Atendible del 129", columna informativa |
 | **40** | Traslado · solo cantidad alta (≥10 bx) | Badge "Trasladable del 40", columna informativa |
 | **121** | Inspección/QC · lote por pasar a VES | Badge "En QC" (≥10 bx), columna informativa |
+| **92** | Inspección secundaria · informativo | Columna informativa (solo perfil completo), chip ámbar punteado |
 | **122** | Exportación · solo informativo | Hoja "122 (Exportación)", chip violeta |
 
 - **Buscador**: número = VES exacto; badges de predespacho y fallbacks (129/40/QC);
