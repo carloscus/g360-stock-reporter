@@ -4,14 +4,14 @@
  *              Compartida entre stock-search y estado-panel para que el
  *              vendedor identifique cada lote de un vistazo.
  * @author @carloscus
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import { LitElement, html, css } from 'lit';
 
 const ITEMS = [
   { cls: 'venta', code: 'VES', label: 'Venta directa' },
-  { cls: 'secundario', code: '129', label: 'Secundario · atendible si VES = 0' },
+  { cls: 'secundario', code: '129 · 92', label: 'Secundario · atendible si VES = 0' },
   { cls: 'terciario', code: '40', label: 'Traslado · solo cantidad alta' },
   { cls: 'inspeccion', code: '121', label: 'Inspección/QC · lote por pasar a VES' },
   { cls: 'exportacion', code: '122', label: 'Exportación · solo informativo' },

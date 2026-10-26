@@ -11,11 +11,13 @@
  * Flujo de carga: memoria → sessionStorage → localStorage → API
  * Flujo de guardado: API → localStorage → sessionStorage → memoria
  * @author @carloscus
- * @version 3.2.0
+ * @version 3.3.0
  */
 
 export const INSPECCION_ALMACEN = '121';
 export const ALMACEN_SECUNDARIO = '129';
+// Segundo almacén secundario (misma función que el 129: atender si VES = 0)
+export const ALMACEN_SECUNDARIO_ALT = '92';
 export const ALMACEN_TRASLADO = '40';
 export const ALMACEN_EXPORTACION = '122';
 export const ALMACEN_PRINCIPAL = 'VES';

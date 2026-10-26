@@ -22,6 +22,7 @@ beforeAll(async () => {
 const NOMBRES_ALMACEN = {
   VES: 'CENTRO LOGISTICO VES',
   '129': 'CLVES OUTLET',
+  '92': 'ALMACEN INSPECCION',
   '40': 'ALMACEN PROD. TERMINADOS',
   '121': 'CLVES INSPECCION',
   '122': 'CLVES EXPORTACION',
@@ -58,7 +59,7 @@ const producto = (over = {}) => ({
   ean14: '',
   keywords: [],
   orden: 10,
-  almacenes_venta: [lote('VES', 4800), lote('129', 200), lote('40', 10), lote('121', 480), lote('122', 300, { stock: 350, predespacho: 50 })],
+  almacenes_venta: [lote('VES', 4800), lote('129', 200), lote('92', 50), lote('40', 10), lote('121', 480), lote('122', 300, { stock: 350, predespacho: 50 })],
   ...over,
 });
 
@@ -71,6 +72,10 @@ const LOGICA = producto({
   sku: '031177', nombre: 'ROMPECABEZAS LÓGICA 500 PZAS', nombre_corto: 'Rompecabezas lógica',
   categoria: 'VINIFAN', linea: 'JUGUETES', un_bx: 24, stock: 960, bx: 40, orden: 60,
   almacenes_venta: [lote('VES', 960)],
+});
+const SOLO92 = producto({
+  sku: '777001', nombre: 'SOLO ALMACEN 92', nombre_corto: 'Solo almacen 92',
+  stock: 0, bx: 0, orden: 30, almacenes_venta: [lote('92', 120)],
 });
 
 const CATALOGO = [VIGENTE, DESCONTINUADO, SIN_CATALOGO, AGOTADO, LOGICA];
@@ -125,16 +130,17 @@ describe('Simulación XLSX', () => {
     const ws = wb.getWorksheet('PELOTAS');
     expect(headers(ws)).toEqual([
       '#', 'Código', 'Producto', 'Línea', 'Un/Caja',
-      '129 (Secundario)', '40 (Traslado)', '121 (Inspección)', '122 (Exportación)',
+      '129 (Secundario)', '92 (Secundario)', '40 (Traslado)', '121 (Inspección)', '122 (Exportación)',
       'Predespacho', 'Revisión', 'Disponible VES', 'Cajas', 'Estado',
     ]);
     const fila = ws.getRow(2);
     expect([
-      fila.getCell(6).value, fila.getCell(7).value, fila.getCell(8).value, fila.getCell(9).value,
-    ]).toEqual([200, 10, 480, 300]);
-    expect(fila.getCell(10).value).toBe(0);   // predespacho del fixture
-    expect(fila.getCell(11).value).toBe('—'); // sin revisión
-    expect(fila.getCell(12).value).toBe(4800); // Disponible nunca suma lotes
+      fila.getCell(6).value, fila.getCell(7).value, fila.getCell(8).value,
+      fila.getCell(9).value, fila.getCell(10).value,
+    ]).toEqual([200, 50, 10, 480, 300]);
+    expect(fila.getCell(11).value).toBe(0);   // predespacho del fixture
+    expect(fila.getCell(12).value).toBe('—'); // sin revisión
+    expect(fila.getCell(13).value).toBe(4800); // Disponible nunca suma lotes
 
     const ws122 = wb.getWorksheet('122 (Exportación)');
     expect(filas(ws122)).toBe(1);
@@ -178,7 +184,7 @@ describe('Simulación búsqueda + compartir', () => {
   beforeEach(async () => {
     document.body.innerHTML = '';
     el = document.createElement('stock-search');
-    el.stockData = { productos: [VIGENTE, AGOTADO, LOGICA] };
+    el.stockData = { productos: [VIGENTE, AGOTADO, LOGICA, SOLO92] };
     el.autor = 'Carlos Cusi';
     document.body.appendChild(el);
     await el.updateComplete;
@@ -230,5 +236,12 @@ describe('Simulación búsqueda + compartir', () => {
     el.onlyInStock = false;
     expect(await buscar('playa')).toHaveLength(1);
     console.log('[SIM C] filtro solo-con-stock -> OK');
+  });
+
+  it('ESCENARIO D: sin VES, atiende desde el 92 (secundario)', async () => {
+    const res = await buscar('solo almacen');
+    expect(res).toHaveLength(1);
+    expect(res[0]).toContain('Atendible del 92: 120');
+    console.log('[SIM D] fallback del 92 -> OK');
   });
 });
