@@ -87,9 +87,9 @@ describe('Simulación XLSX', () => {
     console.log('[SIM 1] rápido -> hojas:', wb.worksheets.map((w) => w.name).join(' | '), '| filas PELOTAS:', filas(ws));
   });
 
-  it('ESCENARIO 2: completo con columnas 129/40/121 + hoja 122, acotado a PELOTAS', async () => {
+  it('ESCENARIO 2: perfil completo (todos los lotes como columnas) + hoja 122, acotado a PELOTAS', async () => {
     const wb = await leer(await rg.generateReportXLSX('TODOS', CATALOGO, {
-      includeInspeccion: true,
+      perfil: 'completo',
       includeSecundarios: true,
       includeExport122: true,
       linea: 'PELOTAS',
@@ -100,11 +100,16 @@ describe('Simulación XLSX', () => {
     const ws = wb.getWorksheet('PELOTAS');
     expect(headers(ws)).toEqual([
       '#', 'Código', 'Producto', 'Línea', 'Un/Caja',
-      '129 (Secundario)', '40 (Traslado)', '121 (Inspección)', 'Disponible VES', 'Cajas', 'Estado',
+      '129 (Secundario)', '40 (Traslado)', '121 (Inspección)', '122 (Exportación)',
+      'Predespacho', 'Revisión', 'Disponible VES', 'Cajas', 'Estado',
     ]);
     const fila = ws.getRow(2);
-    expect([fila.getCell(6).value, fila.getCell(7).value, fila.getCell(8).value]).toEqual([200, 10, 480]);
-    expect(fila.getCell(9).value).toBe(4800); // Disponible nunca suma lotes
+    expect([
+      fila.getCell(6).value, fila.getCell(7).value, fila.getCell(8).value, fila.getCell(9).value,
+    ]).toEqual([200, 10, 480, 300]);
+    expect(fila.getCell(10).value).toBe(0);   // predespacho del fixture
+    expect(fila.getCell(11).value).toBe('—'); // sin revisión
+    expect(fila.getCell(12).value).toBe(4800); // Disponible nunca suma lotes
 
     const ws122 = wb.getWorksheet('122 (Exportación)');
     expect(filas(ws122)).toBe(1);

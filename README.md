@@ -163,8 +163,9 @@ El stock se reporta según el empaque de cada SKU (`un_bx` unidades por caja):
   es más confiable que descargar archivos.
 - **XLSX**: por defecto es un **reporte rápido**: catálogo vigente (sin
   descontinuados), categorías principales y Disponible VES; el alcance puede
-  acotarse a **una línea** y se pueden incluir no vigentes a pedido. Columnas
-  informativas 129/40/121 (checkbox) + hoja adicional "122 (Exportación)"
+  acotarse a **una línea** y se pueden incluir no vigentes a pedido. El **perfil
+  Completo** agrega todos los lotes como columnas (129, 40, 121, 122),
+  predespacho y revisión. La hoja adicional "122 (Exportación)" sigue disponible
   (checkbox propio o descarga directa desde el menú Exportar del dashboard).
 - **Acceso**: login local simulado (nombre + email `@cipsa.com.pe`) como página de
   entrada; sesión en localStorage y menú de sesión en el header (tema claro/oscuro

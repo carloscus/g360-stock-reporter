@@ -3,7 +3,7 @@
  * @description Formulario para generar reporte de stock - UI/UX optimizado.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.4.0
+ * @version 3.5.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -13,7 +13,7 @@ export class PulsoForm extends LitElement {
     categoria: { type: String },
     isGenerating: { type: Boolean },
     showModal: { type: Boolean },
-    includeInspeccion: { type: Boolean },
+    perfil: { type: String },
     includeSecundarios: { type: Boolean },
     includeExport122: { type: Boolean },
     incluirNoVigentes: { type: Boolean },
@@ -441,7 +441,7 @@ export class PulsoForm extends LitElement {
     this.categoria = 'TODOS';
     this.isGenerating = false;
     this.showModal = false;
-    this.includeInspeccion = false;
+    this.perfil = 'rapido';
     this.includeSecundarios = false;
     this.includeExport122 = false;
     this.incluirNoVigentes = false;
@@ -493,7 +493,7 @@ export class PulsoForm extends LitElement {
         this.categoria,
         this.stockData.productos,
         {
-          includeInspeccion: this.includeInspeccion,
+          perfil: this.perfil,
           includeSecundarios: this.includeSecundarios,
           includeExport122: this.includeExport122,
           incluirNoVigentes: this.incluirNoVigentes,
@@ -532,7 +532,7 @@ export class PulsoForm extends LitElement {
     this._filename = '';
     this.categoria = 'TODOS';
     this.linea = '';
-    this.includeInspeccion = false;
+    this.perfil = 'rapido';
     this.includeSecundarios = false;
     this.includeExport122 = false;
     this.incluirNoVigentes = false;
@@ -585,7 +585,7 @@ export class PulsoForm extends LitElement {
           <li>Selecciona la categoría del reporte (y una línea si quieres acotarlo)</li>
           <li>El reporte rápido incluye solo catálogo vigente (sin descontinuados)</li>
           <li>Presiona "Generar Inventario Real-Time" y luego "DESCARGAR AHORA"</li>
-          <li>Opcional: activa "Mostrar columnas 129 (Secundario), 40 (Traslado) y 121 (Inspección)" para ver ese stock como información independiente del disponible</li>
+          <li>Elige el perfil: Rápido (Disponible VES) o Completo (todos los almacenes)</li>
           <li>Opcional: activa "Incluir hoja 122 (Exportación)" para una hoja adicional con el disponible/predespacho de ese almacén</li>
           <li>Opcional: activa "Incluir SKUs fuera de catálogo" para exportar esos ítems en una hoja adicional</li>
         </ol>
@@ -621,14 +621,12 @@ export class PulsoForm extends LitElement {
             </div>
           ` : ''}
 
-          <div class="checkbox-row ${this.includeInspeccion ? 'checked' : ''}" @click=${() => this.includeInspeccion = !this.includeInspeccion}>
-            <input
-              type="checkbox"
-              .checked=${this.includeInspeccion}
-              @change=${(e) => this.includeInspeccion = e.target.checked}
-              @click=${(e) => e.stopPropagation()}
-            />
-            <label>Mostrar columnas 129 (Secundario), 40 (Traslado) y 121 (Inspección)</label>
+          <div class="field">
+            <label class="label">Perfil de reporte</label>
+            <select class="select-input" @change=${(e) => this.perfil = e.target.value}>
+              <option value="rapido" ?selected=${this.perfil === 'rapido'}>Rápido · Disponible VES</option>
+              <option value="completo" ?selected=${this.perfil === 'completo'}>Completo · todos los almacenes</option>
+            </select>
           </div>
           <div class="checkbox-row ${this.includeSecundarios ? 'checked' : ''}" @click=${() => this.includeSecundarios = !this.includeSecundarios}>
             <input

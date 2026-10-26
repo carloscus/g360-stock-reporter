@@ -80,6 +80,7 @@ describe('componentes (smoke de render)', () => {
     await el.updateComplete;
     const texto = el.shadowRoot.textContent;
     expect(texto).toContain('Categoría de Interés');
+    expect(texto).toContain('Perfil de reporte');
     expect(texto).not.toContain('Email Corporativo');
   });
 
