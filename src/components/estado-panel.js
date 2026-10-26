@@ -4,7 +4,7 @@
  *              lista expandible por categoria con SKUs y cajas VES,
  *              y exportacion de datos.
  * @author @carloscus
- * @version 4.7.0
+ * @version 4.8.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -716,6 +716,10 @@ export class EstadoPanel extends LitElement {
             <span class="detail-value">${s.categoria}</span>
           </div>
           <div class="detail-row">
+            <span class="detail-label">Línea</span>
+            <span class="detail-value">${s.linea || '—'}</span>
+          </div>
+          <div class="detail-row">
             <span class="detail-label">Cajas</span>
             <span class="detail-value">${esPorUnidades(s) ? '— (unidades)' : s.bx}</span>
           </div>
@@ -724,12 +728,20 @@ export class EstadoPanel extends LitElement {
             <span class="detail-value">${s.stock}</span>
           </div>
           <div class="detail-row">
+            <span class="detail-label">Predespacho</span>
+            <span class="detail-value">${s.predespacho ?? 0}</span>
+          </div>
+          <div class="detail-row">
             <span class="detail-label">Peso</span>
             <span class="detail-value">${s.peso_kg} kg</span>
           </div>
           <div class="detail-row">
             <span class="detail-label">Unidad de medida</span>
             <span class="detail-value">${s.um || '—'}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Revisión</span>
+            <span class="detail-value">${s.revision || '—'}</span>
           </div>
           <div class="almacen-chips">
             ${(s.almacenes_venta || []).map(a => html`

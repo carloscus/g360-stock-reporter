@@ -76,6 +76,22 @@ describe('estado-panel (render real)', () => {
     expect(el.shadowRoot.querySelectorAll('.sku-item')).toHaveLength(2);
   });
 
+  it('el detalle del SKU muestra línea, predespacho y revisión', async () => {
+    const el = await montar('dashboard');
+    el._expandedCategories = new Set(['VINIBALL']);
+    el._expandedSkus = new Set(['015939']);
+    el.requestUpdate();
+    await el.updateComplete;
+
+    const detalle = el.shadowRoot.querySelector('.sku-detail');
+    expect(detalle).toBeTruthy();
+    const texto = detalle.textContent;
+    expect(texto).toContain('Línea');
+    expect(texto).toContain('PELOTAS');
+    expect(texto).toContain('Predespacho');
+    expect(texto).toContain('Revisión');
+  });
+
   it('renderiza alertas con búsqueda y filtros', async () => {
     const el = await montar('alertas');
     const texto = el.shadowRoot.textContent;
