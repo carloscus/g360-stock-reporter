@@ -398,7 +398,7 @@ export class AppRoot extends LitElement {
 
     .search-container {
       width: 100%;
-      max-width: 500px;
+      max-width: 460px;
       background: var(--g360-surface);
       border: 1px solid var(--g360-border);
       border-radius: 24px;

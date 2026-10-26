@@ -101,4 +101,15 @@ describe('búsqueda por voz', () => {
     await new Promise((resolve) => setTimeout(resolve, 260));
     expect(el.searchTerm).toBe('vo');
   });
+
+  it('muestra el botón de voz deshabilitado si el navegador no lo soporta', async () => {
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+
+    const el = await montar();
+    const btn = el.shadowRoot.querySelector('.voice-btn');
+    expect(btn).toBeTruthy();
+    expect(btn.disabled).toBe(true);
+    expect(btn.title).toContain('no disponible');
+  });
 });

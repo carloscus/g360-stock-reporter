@@ -3,7 +3,7 @@
  * @description Componente de búsqueda de productos con Fuse.js.
  *              Recibe datos via prop .stockData del store centralizado.
  * @author @carloscus
- * @version 3.15.0
+ * @version 3.16.0
  */
 
 import { LitElement, html, css } from 'lit';
@@ -57,6 +57,7 @@ export class StockSearch extends LitElement {
 
     .search-input {
       flex: 1;
+      min-width: 0;
       background: transparent;
       border: none;
       color: var(--g360-text);
@@ -104,6 +105,13 @@ export class StockSearch extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .voice-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      animation: none;
     }
 
     .voice-btn.active {
@@ -1151,21 +1159,19 @@ export class StockSearch extends LitElement {
             </svg>
           </button>
         ` : ''}
-        ${this._recognition ? html`
-          <button
-            class="voice-btn ${this.isListening ? 'active' : ''}"
-            @click=${this._toggleVoiceSearch}
-            ?disabled=${this.isLoading}
-            title="Buscar por voz"
-            aria-label="Buscar por voz"
-            aria-pressed=${this.isListening ? 'true' : 'false'}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
-            </svg>
-          </button>
-        ` : ''}
+        <button
+          class="voice-btn ${this.isListening ? 'active' : ''}"
+          @click=${this._toggleVoiceSearch}
+          ?disabled=${!this._recognition || this.isLoading}
+          title=${this._recognition ? 'Buscar por voz' : 'Dictado no disponible en este navegador'}
+          aria-label=${this._recognition ? 'Buscar por voz' : 'Dictado no disponible en este navegador'}
+          aria-pressed=${this.isListening ? 'true' : 'false'}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+          </svg>
+        </button>
         <button
           class="search-close"
           @click=${() => this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }))}
